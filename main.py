@@ -144,9 +144,10 @@ def handleHttp(request: flask.Request) -> flask.Response:
             root = ET.fromstring(upstream.text)
         if detectRss(upstream.headers['Content-Type'], root):
             modifyRss(root)
-        if detectAtom(upstream.headers['Content-Type'], root):
+        elif detectAtom(upstream.headers['Content-Type'], root):
             modifyAtom(root)
-        logging.error('Could not detect content-type, returning XML unmodified')
+        else:
+            logging.error('Could not detect content-type, returning XML unmodified')
         with tracer.span(name='serialize'):
             res.set_data(ET.tostring(root, encoding='unicode') )
             res.content_type = upstream.headers['Content-Type']
