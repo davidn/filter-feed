@@ -57,8 +57,13 @@ elif LOG_HANDLER == 'structured':
     handler.setFormatter(StructureLogFormater())
     py_logging.getLogger().addHandler(handler)
 if "LOG_LEVEL" in os.environ:
-    logging.set_verbosity(os.environ["LOG_LEVEL"])
-
+    log_level = os.environ["LOG_LEVEL"].upper()
+    logging.set_verbosity(log_level)
+    requests_log = py_logging.getLogger("urllib3")
+    requests_log.setLevel(log_level)
+    requests_log.propagate = True
+    flask_log = py_logging.getLogger("app")
+    flask_log.setLevel(log_level)
 
 def initialize_tracer(request: 'flask.Request') -> tracer.Tracer:
     if TRACE_PROPAGATE == "google":
