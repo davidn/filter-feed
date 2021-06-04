@@ -23,7 +23,7 @@ STACKDRIVER_ERROR_REPORTING = os.environ.get("STACKDRIVER_ERROR_REPORTING", "").
 LOG_HANDLER = os.environ.get("LOG_HANDLER", "").lower()
 PROJECT_ID = os.environ.get("PROJECT_ID", "")
 
-config_integration.trace_integrations(['requests', 'logging', 'google_cloud_clientlibs'])
+config_integration.trace_integrations(['logging', 'google_cloud_clientlibs'])
 
 if LOG_HANDLER == 'absl':
     logging.use_absl_handler()

@@ -3,7 +3,6 @@ google-cloud-error-reporting
 opencensus
 opencensus-ext-stackdriver
 opencensus-ext-flask
-opencensus-ext-requests
 opencensus-ext-logging
 opencensus-ext-google-cloud-clientlibs
 flask
