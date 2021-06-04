@@ -6,7 +6,7 @@ from flask import Flask, request
 from main import handleHttp
 
 app = Flask(__name__)
-@app.route('/', methods=["POST"])
+@app.route('/')
 def entry():
     return handleHttp(request)
 
