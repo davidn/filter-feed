@@ -103,10 +103,10 @@ def modifyAtom(root: ET.Element):
     if title:
         title.text += " (filtered)"
     with tracer.span(name='filter'):
-    for entry in root.iterfind(".//entry"):
-        entry_title = entry.find("title")
-        if entry_title and "SYSK Selects" in entry_title.text:
-            root.remove(entry)
+        for entry in root.iterfind(".//entry"):
+            entry_title = entry.find("title")
+            if entry_title and "SYSK Selects" in entry_title.text:
+                root.remove(entry)
 
 def detectRss(content_type: str, root: ET.Element):
     if content_type in (
