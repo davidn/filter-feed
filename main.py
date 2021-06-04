@@ -10,20 +10,13 @@ from google.cloud import error_reporting
 import google.cloud.logging
 import google.cloud.logging.handlers
 import requests
-from typing import Sequence, Optional, TYPE_CHECKING
-from opencensus.common.transports.async_ import AsyncTransport
-from opencensus.trace import (
-    config_integration, tracer, samplers, execution_context, print_exporter, logging_exporter)
-from opencensus.trace.propagation import (
-    google_cloud_format, trace_context_http_header_format)
-from opencensus.ext.stackdriver import trace_exporter
+from typing import Sequence, Optional
+from opencensus.trace import config_integration, execution_context
 import xml.etree.ElementTree as ET
 import flask
 
 
 STACKDRIVER_ERROR_REPORTING = os.environ.get("STACKDRIVER_ERROR_REPORTING", "").lower() in (1, 'true', 't')
-TRACE_EXPORTER = os.environ.get("TRACE_EXPORTER", "").lower()
-TRACE_PROPAGATE = os.environ.get("TRACE_PROPAGATE", "").lower()
 LOG_HANDLER = os.environ.get("LOG_HANDLER", "").lower()
 PROJECT_ID = os.environ.get("PROJECT_ID", "")
 
@@ -57,6 +50,7 @@ elif LOG_HANDLER == 'structured':
     handler = py_logging.StreamHandler()
     handler.setFormatter(StructureLogFormater())
     py_logging.getLogger().addHandler(handler)
+
 if "LOG_LEVEL" in os.environ:
     log_level = os.environ["LOG_LEVEL"].upper()
     logging.set_verbosity(log_level)
@@ -65,29 +59,6 @@ if "LOG_LEVEL" in os.environ:
     requests_log.propagate = True
     flask_log = py_logging.getLogger("app")
     flask_log.setLevel(log_level)
-
-def initialize_tracer(request: 'flask.Request') -> tracer.Tracer:
-    if TRACE_PROPAGATE == "google":
-        propagator = google_cloud_format.GoogleCloudFormatPropagator()
-    else:
-        propagator = trace_context_http_header_format.TraceContextPropagator()
-    if TRACE_EXPORTER == "stackdriver":
-        exporter = trace_exporter.StackdriverExporter(transport=AsyncTransport)
-        sampler = samplers.AlwaysOnSampler()
-    elif TRACE_EXPORTER == "log":
-        exporter = logging_exporter.LoggingExporter(
-            handler=py_logging.NullHandler(), transport=AsyncTransport)
-        sampler = samplers.AlwaysOnSampler()
-    elif TRACE_EXPORTER == "stdout":
-        exporter = print_exporter.PrintExporter(transport=AsyncTransport)
-        sampler = samplers.AlwaysOnSampler()
-    else:
-        exporter = print_exporter.PrintExporter(transport=AsyncTransport)
-        sampler = samplers.AlwaysOffSampler()
-    span_context = propagator.from_headers(request.headers)
-    return tracer.Tracer(exporter=exporter, sampler=sampler,
-                         propagator=propagator, span_context=span_context)
-
 
 
 FEED_URL = "https://feeds.megaphone.fm/stuffyoushouldknow"
@@ -137,8 +108,8 @@ def detectAtom(content_type: str, root: ET.Element) -> bool:
 
 
 def handleHttp(request: flask.Request) -> flask.Response:
+    tracer = execution_context.get_opencensus_tracer()
     res = flask.Response()
-    tracer = initialize_tracer(request)
     try:
         upstream = requests.get(FEED_URL)
         with tracer.span(name='parse'):
