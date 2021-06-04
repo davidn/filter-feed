@@ -88,26 +88,30 @@ FEED_URL = "https://feeds.megaphone.fm/stuffyoushouldknow"
 def modifyRss(root: ET.Element):
     tracer = execution_context.get_opencensus_tracer()
     title = root.find(".//channel/title")
-    if title:
+    if title is None:
+        logging.warning("Could not find .//channel/title to modify")
+    else:
         title.text += " (filtered)"
     with tracer.span(name='filter_rss'):
         chan = root.find("channel")
-        if not chan:
+        if chan is None:
             raise Exception('Missing channel element')
         for item in root.iterfind(".//item"):
             item_title = item.find("title")
-            if item_title and "SYSK Selects" in item_title.text:
+            if item_title is not None and "SYSK Selects" in item_title.text:
                 chan.remove(item)
 
 def modifyAtom(root: ET.Element):
     tracer = execution_context.get_opencensus_tracer()
     title = root.find(".//feed/title")
-    if title:
+    if title is None:
+        logging.warning("Could not find .//feed/title to modify")
+    else:
         title.text += " (filtered)"
     with tracer.span(name='filter_atom'):
         for entry in root.iterfind(".//entry"):
             entry_title = entry.find("title")
-            if entry_title and "SYSK Selects" in entry_title.text:
+            if entry_title is not None and "SYSK Selects" in entry_title.text:
                 root.remove(entry)
 
 def detectRss(content_type: str, root: ET.Element) -> bool:
