@@ -18,9 +18,7 @@ from opencensus.trace.propagation import (
     google_cloud_format, trace_context_http_header_format)
 from opencensus.ext.stackdriver import trace_exporter
 import xml.etree.ElementTree as ET
-
-if TYPE_CHECKING:
-    import flask
+import flask
 
 
 STACKDRIVER_ERROR_REPORTING = os.environ.get("STACKDRIVER_ERROR_REPORTING", "").lower() in (1, 'true', 't')
@@ -87,27 +85,61 @@ def initialize_tracer(request: 'flask.Request') -> tracer.Tracer:
 
 FEED_URL = "https://feeds.megaphone.fm/stuffyoushouldknow"
 
+def modifyRss(root: ET.Element):
+    title = root.find(".//channel/title")
+    if title:
+        title.text += " (filtered)"
+    with tracer.span(name='filter'):
+        chan = root.find("channel")
+        if not chan:
+            raise Exception('Missing channel element')
+        for item in root.iterfind(".//item"):
+            item_title = item.find("title")
+            if item_title and "SYSK Selects" in item_title.text:
+                chan.remove(item)
 
-def handleHttp(request: 'flask.Request') -> str:
+def modifyAtom(root: ET.Element):
+    title = root.find(".//feed/title")
+    if title:
+        title.text += " (filtered)"
+    with tracer.span(name='filter'):
+    for entry in root.iterfind(".//entry"):
+        entry_title = entry.find("title")
+        if entry_title and "SYSK Selects" in entry_title.text:
+            root.remove(entry)
+
+def detectRss(content_type: str, root: ET.Element):
+    if content_type in (
+            "application/rss+xml",
+            ):
+        return True
+        if root.tag = "rss":
+            return True
+
+def detectAtom(content_type: str, root: ET.Element):
+    if content_type in (
+            "application/atom+xml",
+            ):
+        return True
+        if root.tag = "feed":
+            return True
+
+
+def handleHttp(request: flask.Request) -> flask.Response:
+    res = flask.Response()
     tracer = initialize_tracer(request)
     try:
         with tracer.span(name='fetch'):
-            raw = requests.get(FEED_URL).text
+            upstream = requests.get(FEED_URL)
         with tracer.span(name='parse'):
-            root = ET.fromstring(raw)
-        title = root.find(".//channel/title")
-        if title:
-            title.text += " (filtered)"
-        with tracer.span(name='filter'):
-            chan = root.find("channel")
-            if not chan:
-                raise Exception('Missing channel element')
-            for item in root.iterfind(".//item"):
-                item_title = item.find("title")
-                if item_title and "SYSK Selects" in item_title.text:
-                    chan.remove(item)
+            root = ET.fromstring(raw.text)
+        if detectRss(upstream.headers['Content-Type'], root):
+            modifyRss(root)
+        if detectAtom(upstream.headers['Content-Type'], root):
+            modifyAtom(root)
         with tracer.span(name='serialize'):
-            return ET.tostring(root, encoding='unicode') 
+            res.set_data(ET.tostring(root, encoding='unicode') )
+            res.content_type = upstream.headers['Content-Type']
     except Exception as e:
         logging.exception(e)
         if STACKDRIVER_ERROR_REPORTING:
@@ -117,4 +149,4 @@ def handleHttp(request: 'flask.Request') -> str:
                     http_context=error_reporting.build_flask_context(request))
             except Exception:
                 logging.exception("Failed to send error report to Google")
-    return ''
+    return res
