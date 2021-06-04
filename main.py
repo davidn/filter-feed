@@ -108,21 +108,19 @@ def modifyAtom(root: ET.Element):
             if entry_title and "SYSK Selects" in entry_title.text:
                 root.remove(entry)
 
-def detectRss(content_type: str, root: ET.Element):
+def detectRss(content_type: str, root: ET.Element) -> bool:
     if content_type in (
             "application/rss+xml",
             ):
         return True
-        if root.tag == "rss":
-            return True
+    return root.tag == "rss"
 
-def detectAtom(content_type: str, root: ET.Element):
+def detectAtom(content_type: str, root: ET.Element) -> bool:
     if content_type in (
             "application/atom+xml",
             ):
         return True
-        if root.tag == "feed":
-            return True
+    return root.tag == "feed"
 
 
 def handleHttp(request: flask.Request) -> flask.Response:
@@ -137,6 +135,7 @@ def handleHttp(request: flask.Request) -> flask.Response:
             modifyRss(root)
         if detectAtom(upstream.headers['Content-Type'], root):
             modifyAtom(root)
+        logging.error('Could not detect content-type, returning XML unmodified')
         with tracer.span(name='serialize'):
             res.set_data(ET.tostring(root, encoding='unicode') )
             res.content_type = upstream.headers['Content-Type']
