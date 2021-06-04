@@ -52,9 +52,9 @@ app.config['OPENCENSUS'] = {
 }
 FlaskMiddleware(app)
 
-@app.route('/')
-def entry():
-    return handleHttp(request)
+@app.route('/<key>')
+def entry(key):
+    return handleHttp(request, key)
 
 
 if __name__ == "__main__":

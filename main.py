@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import filter_feed
+
 import os
 import json
 import logging as py_logging
@@ -9,6 +11,7 @@ from absl import logging
 from google.cloud import error_reporting
 import google.cloud.logging
 import google.cloud.logging.handlers
+from google.cloud import ndb
 import requests
 from typing import Sequence, Optional
 from opencensus.trace import config_integration, execution_context
@@ -20,7 +23,7 @@ STACKDRIVER_ERROR_REPORTING = os.environ.get("STACKDRIVER_ERROR_REPORTING", "").
 LOG_HANDLER = os.environ.get("LOG_HANDLER", "").lower()
 PROJECT_ID = os.environ.get("PROJECT_ID", "")
 
-config_integration.trace_integrations(['requests', 'logging'])
+config_integration.trace_integrations(['requests', 'logging', 'google_cloud_clientlibs'])
 
 if LOG_HANDLER == 'absl':
     logging.use_absl_handler()
@@ -61,9 +64,7 @@ if "LOG_LEVEL" in os.environ:
     flask_log.setLevel(log_level)
 
 
-FEED_URL = "https://feeds.megaphone.fm/stuffyoushouldknow"
-
-def modifyRss(root: ET.Element):
+def modifyRss(root: ET.Element, settings: filter_feed.FilterFeed):
     tracer = execution_context.get_opencensus_tracer()
     title = root.find(".//channel/title")
     if title is None:
@@ -76,10 +77,10 @@ def modifyRss(root: ET.Element):
             raise Exception('Missing channel element')
         for item in root.iterfind(".//item"):
             item_title = item.find("title")
-            if item_title is not None and "SYSK Selects" in item_title.text:
+            if item_title is not None and settings.title_match in item_title.text:
                 chan.remove(item)
 
-def modifyAtom(root: ET.Element):
+def modifyAtom(root: ET.Element, settings: filter_feed.FilterFeed):
     tracer = execution_context.get_opencensus_tracer()
     title = root.find(".//feed/title")
     if title is None:
@@ -89,7 +90,7 @@ def modifyAtom(root: ET.Element):
     with tracer.span(name='filter_atom'):
         for entry in root.iterfind(".//entry"):
             entry_title = entry.find("title")
-            if entry_title is not None and "SYSK Selects" in entry_title.text:
+            if entry_title is not None and settings.title_match in entry_title.text:
                 root.remove(entry)
 
 def detectRss(content_type: str, root: ET.Element) -> bool:
@@ -107,17 +108,20 @@ def detectAtom(content_type: str, root: ET.Element) -> bool:
     return root.tag == "feed"
 
 
-def handleHttp(request: flask.Request) -> flask.Response:
+def handleHttp(request: flask.Request, key: str) -> flask.Response:
     tracer = execution_context.get_opencensus_tracer()
     res = flask.Response()
     try:
-        upstream = requests.get(FEED_URL)
+        client = ndb.Client()
+        with client.context():
+            settings = filter_feed.FilterFeed.get_by_id(int(key))
+        upstream = requests.get(settings.url)
         with tracer.span(name='parse'):
             root = ET.fromstring(upstream.text)
         if detectRss(upstream.headers['Content-Type'], root):
-            modifyRss(root)
+            modifyRss(root, settings)
         elif detectAtom(upstream.headers['Content-Type'], root):
-            modifyAtom(root)
+            modifyAtom(root, settings)
         else:
             logging.error('Could not detect content-type, returning XML unmodified')
         with tracer.span(name='serialize'):
@@ -132,4 +136,5 @@ def handleHttp(request: flask.Request) -> flask.Response:
                     http_context=error_reporting.build_flask_context(request))
             except Exception:
                 logging.exception("Failed to send error report to Google")
+        raise
     return res

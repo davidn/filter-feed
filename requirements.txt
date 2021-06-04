@@ -5,7 +5,10 @@ opencensus-ext-stackdriver
 opencensus-ext-flask
 opencensus-ext-requests
 opencensus-ext-logging
+opencensus-ext-google-cloud-clientlibs
 flask
 gunicorn
 google-cloud-trace
 google-python-cloud-debugger
+google-cloud-ndb
+validators
