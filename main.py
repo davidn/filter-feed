@@ -86,10 +86,11 @@ def initialize_tracer(request: 'flask.Request') -> tracer.Tracer:
 FEED_URL = "https://feeds.megaphone.fm/stuffyoushouldknow"
 
 def modifyRss(root: ET.Element):
+    tracer = execution_context.get_opencensus_tracer()
     title = root.find(".//channel/title")
     if title:
         title.text += " (filtered)"
-    with tracer.span(name='filter'):
+    with tracer.span(name='filter_rss'):
         chan = root.find("channel")
         if not chan:
             raise Exception('Missing channel element')
@@ -99,10 +100,11 @@ def modifyRss(root: ET.Element):
                 chan.remove(item)
 
 def modifyAtom(root: ET.Element):
+    tracer = execution_context.get_opencensus_tracer()
     title = root.find(".//feed/title")
     if title:
         title.text += " (filtered)"
-    with tracer.span(name='filter'):
+    with tracer.span(name='filter_atom'):
         for entry in root.iterfind(".//entry"):
             entry_title = entry.find("title")
             if entry_title and "SYSK Selects" in entry_title.text:
