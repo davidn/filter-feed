@@ -4,8 +4,10 @@ import os
 
 from flask import Flask, request
 from main import handleHttp
+from opencensus.ext.flask.flask_middleware import FlaskMiddleware
 
 app = Flask(__name__)
+FlaskMiddleware(app)
 @app.route('/')
 def entry():
     return handleHttp(request)

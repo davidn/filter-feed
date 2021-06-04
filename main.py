@@ -13,7 +13,7 @@ import requests
 from typing import Sequence, Optional, TYPE_CHECKING
 from opencensus.common.transports.async_ import AsyncTransport
 from opencensus.trace import (
-    tracer, samplers, execution_context, print_exporter, logging_exporter)
+    config_integration, tracer, samplers, execution_context, print_exporter, logging_exporter)
 from opencensus.trace.propagation import (
     google_cloud_format, trace_context_http_header_format)
 from opencensus.ext.stackdriver import trace_exporter
@@ -27,6 +27,7 @@ TRACE_PROPAGATE = os.environ.get("TRACE_PROPAGATE", "").lower()
 LOG_HANDLER = os.environ.get("LOG_HANDLER", "").lower()
 PROJECT_ID = os.environ.get("PROJECT_ID", "")
 
+config_integration.trace_integrations(['requests', 'logging'])
 
 if LOG_HANDLER == 'absl':
     logging.use_absl_handler()
@@ -42,8 +43,8 @@ elif LOG_HANDLER == 'structured':
                 "message": super().format(record),
                 "time": datetime.fromtimestamp(record.created, timezone.utc).isoformat(),
                 "severity": record.levelname,
-                "logging.googleapis.com/trace": "projects/%s/traces/%s" % (
-                    PROJECT_ID, context.trace_id),
+                "logging.googleapis.com/trace": f"projects/{PROJECT_ID}/traces/{context.trace_id}",
+                "logging.googleapis.com/spanId": context.span_id,
                 "logging.googleapis.com/sourceLocation": {
                     "file": record.filename,
                     "line": record.lineno,
@@ -86,6 +87,7 @@ def initialize_tracer(request: 'flask.Request') -> tracer.Tracer:
     span_context = propagator.from_headers(request.headers)
     return tracer.Tracer(exporter=exporter, sampler=sampler,
                          propagator=propagator, span_context=span_context)
+
 
 
 FEED_URL = "https://feeds.megaphone.fm/stuffyoushouldknow"
