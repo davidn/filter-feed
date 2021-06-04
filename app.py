@@ -13,11 +13,15 @@ from opencensus.trace.propagation import (
     google_cloud_format, trace_context_http_header_format)
 from opencensus.ext.stackdriver import trace_exporter
 
+try:
+    import googleclouddebugger
+    googleclouddebugger.enable(
+            breakpoint_enable_canary=False)
+except ImportError:
+    pass
+
 app = Flask(__name__)
 FlaskMiddleware(app)
-@app.route('/')
-def entry():
-    return handleHttp(request)
 
 TRACE_EXPORTER = os.environ.get("TRACE_EXPORTER", "").lower()
 TRACE_PROPAGATE = os.environ.get("TRACE_PROPAGATE", "").lower()
@@ -48,6 +52,10 @@ app.config['OPENCENSUS'] = {
     }
 }
 
+
+@app.route('/')
+def entry():
+    return handleHttp(request)
 
 
 if __name__ == "__main__":

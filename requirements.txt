@@ -8,3 +8,4 @@ opencensus-ext-logging
 flask
 gunicorn
 google-cloud-trace
+google-python-cloud-debugger
