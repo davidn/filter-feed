@@ -132,7 +132,7 @@ def handleHttp(request: flask.Request) -> flask.Response:
         with tracer.span(name='fetch'):
             upstream = requests.get(FEED_URL)
         with tracer.span(name='parse'):
-            root = ET.fromstring(raw.text)
+            root = ET.fromstring(upstream.text)
         if detectRss(upstream.headers['Content-Type'], root):
             modifyRss(root)
         if detectAtom(upstream.headers['Content-Type'], root):
