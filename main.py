@@ -113,7 +113,7 @@ def detectRss(content_type: str, root: ET.Element):
             "application/rss+xml",
             ):
         return True
-        if root.tag = "rss":
+        if root.tag == "rss":
             return True
 
 def detectAtom(content_type: str, root: ET.Element):
@@ -121,7 +121,7 @@ def detectAtom(content_type: str, root: ET.Element):
             "application/atom+xml",
             ):
         return True
-        if root.tag = "feed":
+        if root.tag == "feed":
             return True
 
 
