@@ -20,9 +20,6 @@ try:
 except ImportError:
     pass
 
-app = Flask(__name__)
-FlaskMiddleware(app)
-
 TRACE_EXPORTER = os.environ.get("TRACE_EXPORTER", "").lower()
 TRACE_PROPAGATE = os.environ.get("TRACE_PROPAGATE", "").lower()
 
@@ -44,6 +41,8 @@ else:
     exporter = print_exporter.PrintExporter(transport=AsyncTransport)
     sampler = samplers.AlwaysOffSampler()
 
+
+app = Flask(__name__)
 app.config['OPENCENSUS'] = {
     'TRACE': {
         'PROPAGATOR': propagator,
@@ -51,7 +50,7 @@ app.config['OPENCENSUS'] = {
         'SAMPLER': sampler
     }
 }
-
+FlaskMiddleware(app)
 
 @app.route('/')
 def entry():
