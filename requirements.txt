@@ -11,3 +11,4 @@ google-cloud-trace
 google-python-cloud-debugger
 google-cloud-ndb
 validators
+jqqb-evaluator

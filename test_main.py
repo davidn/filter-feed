@@ -3,6 +3,7 @@ import unittest
 import xml.etree.ElementTree as ET
 
 from main import detectRss, detectAtom, modifyRss, modifyAtom
+from filter_feed import FilterFeed
 
 class DetectTest(unittest.TestCase):
     def test_RSSFromXML(self):
@@ -44,3 +45,50 @@ class DetectTest(unittest.TestCase):
       ct = "text/html"
       self.assertFalse(detectRss(ct, xml))
       self.assertFalse(detectAtom(ct, xml))
+
+class ModifyRssTest(unittest.TestCase):
+    def test_title(self):
+      xml = ET.fromstring(
+              "<rss><channel><title>foo</title></channel></rss>"
+              )
+      ff = FilterFeed()
+      modifyRss(xml, ff)
+      self.assertEqual(xml.find(".//channel/title").text, "foo (filtered)")
+
+    def test_remove(self):
+      xml = ET.fromstring(
+              "<rss><channel><title>asdf</title><item><title>foo</title></item></channel></rss>"
+              )
+      ff = FilterFeed(query_builder={
+          "condition": "AND",
+          "rules": [{
+              "id": "X",
+              "field": "title",
+              "type": "string",
+              "input": "text",
+              "operator": "equal",
+              "value": "foo"
+              }]})
+      modifyRss(xml, ff)
+      self.assertIsNone(xml.find(".//item/title"))
+      self.assertIsNotNone(xml.find(".//channel/title"), "Accidentally removed title")
+
+    def test_keep(self):
+      xml = ET.fromstring(
+              "<rss><channel><title>asdf</title><item><title>foo</title></item></channel></rss>"
+              )
+      ff = FilterFeed(query_builder={
+          "condition": "AND",
+          "rules": [{
+              "id": "X",
+              "field": "title",
+              "type": "string",
+              "input": "text",
+              "operator": "equal",
+              "value": "bar"
+              }]})
+      modifyRss(xml, ff)
+      self.assertIsNotNone(xml.find(".//item/title"))
+      self.assertIsNotNone(xml.find(".//channel/title"), "Accidentally removed title")
+
+

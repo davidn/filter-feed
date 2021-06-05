@@ -6,6 +6,8 @@ import os
 import json
 import logging as py_logging
 from datetime import datetime, timezone
+from dataclasses import dataclass, asdict
+from email.utils import parsedate_to_datetime
 
 from absl import logging
 from google.cloud import error_reporting
@@ -13,10 +15,11 @@ import google.cloud.logging
 import google.cloud.logging.handlers
 from google.cloud import ndb
 import requests
-from typing import Sequence, Optional
+from typing import Sequence, Optional, Callable, TypeVar
 from opencensus.trace import config_integration, execution_context
 import xml.etree.ElementTree as ET
 import flask
+from jqqb_evaluator.evaluator import Evaluator
 
 
 STACKDRIVER_ERROR_REPORTING = os.environ.get("STACKDRIVER_ERROR_REPORTING", "").lower() in (1, 'true', 't')
@@ -64,6 +67,36 @@ if "LOG_LEVEL" in os.environ:
     flask_log.setLevel(log_level)
 
 
+
+@dataclass
+class Item:
+    title: Optional[str]
+    date: Optional[datetime]
+    description: Optional[str]
+    T = TypeVar('T')
+
+    @classmethod
+    def _content(cls, item: ET.Element, tag: str, c: Callable[[str], T]=str) -> Optional[T]:
+        el = item.find(tag)
+        return None if el is None else c(el.text)
+
+    @classmethod
+    def fromRssItem(cls, item: ET.Element) -> 'Item':
+        return Item(
+                title=cls._content(item, "title"),
+                date=cls._content(item, "pubDate", parsedate_to_datetime),
+                description=cls._content(item, "description")
+                )
+
+    @classmethod
+    def fromAtomEntry(cls, item: ET.Element) -> 'Item':
+        return Item(
+                title=cls._content(item, "title"),
+                date=cls._content(item, "updated", datetime.fromisoformat),
+                description=cls._content(item, "summary")
+                )
+
+
 def modifyRss(root: ET.Element, settings: filter_feed.FilterFeed):
     tracer = execution_context.get_opencensus_tracer()
     title = root.find(".//channel/title")
@@ -75,10 +108,13 @@ def modifyRss(root: ET.Element, settings: filter_feed.FilterFeed):
         chan = root.find("channel")
         if chan is None:
             raise Exception('Missing channel element')
-        for item in root.iterfind(".//item"):
-            item_title = item.find("title")
-            if item_title is not None and settings.title_match in item_title.text:
-                chan.remove(item)
+        evaluator = Evaluator(settings.query_builder)
+        delete_items = filter(
+                lambda i: evaluator.object_matches_rules(asdict(Item.fromRssItem(i))),
+                root.iterfind(".//item"))
+        for item in delete_items:
+            chan.remove(item)
+
 
 def modifyAtom(root: ET.Element, settings: filter_feed.FilterFeed):
     tracer = execution_context.get_opencensus_tracer()
@@ -88,10 +124,12 @@ def modifyAtom(root: ET.Element, settings: filter_feed.FilterFeed):
     else:
         title.text += " (filtered)"
     with tracer.span(name='filter_atom'):
-        for entry in root.iterfind(".//entry"):
-            entry_title = entry.find("title")
-            if entry_title is not None and settings.title_match in entry_title.text:
-                root.remove(entry)
+        evaluator = Evaluator(settings.query_builder)
+        delete_entries = filter(
+                lambda i: evaluator.object_matches_rules(asdict(Item.fromAtomEntry(i))),
+                root.iterfind(".//entry"))
+        for entry in delete_entries:
+            root.remove(entry)
 
 def detectRss(content_type: str, root: ET.Element) -> bool:
     if content_type in (
