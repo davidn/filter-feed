@@ -6,11 +6,13 @@ from jqqb_evaluator.evaluator import Evaluator
 from datetime import datetime
 
 def validate_url(prop, value) -> bool:
-    return url.url(value, public=True)
+    assert url(value, public=True)
+    return value
 
 def validate_jqqb(prop, value) -> bool:
     e = Evaluator(value)
     e.object_matches_rules({"title": "blah", "pubdate": datetime.min, "description": "desc"})
+    return value
 
 class FilterFeed(ndb.Model):
     url = ndb.StringProperty(required=True, validator=validate_url)
