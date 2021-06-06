@@ -92,3 +92,19 @@ class ModifyRssTest(unittest.TestCase):
       self.assertIsNotNone(xml.find(".//channel/title"), "Accidentally removed title")
 
 
+    def test_golden(self):
+      xml_in = ET.parse("testdata/rss.xml")
+      xml_check = ET.parse("testdata/rss-filtered.xml")
+      ff = FilterFeed(query_builder={
+          "condition": "AND",
+          "rules": [{
+              "id": "X",
+              "field": "title",
+              "type": "string",
+              "input": "text",
+              "operator": "contains",
+              "value": "Boring"
+              }]})
+      modifyRss(xml_in.getroot(), ff)
+      self.assertEqual(ET.tostring(xml_in.getroot()), ET.tostring(xml_check.getroot()))
+

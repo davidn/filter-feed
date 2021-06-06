@@ -1,0 +1,17 @@
+<rss version="2.0">
+	<channel>
+		<title>Example Pod (filtered)</title>
+		<description>About it</description>
+		<link>http://there/</link>
+		<language>en</language>
+		<copyright>this is an example sentence</copyright>
+		<item>
+			<title>Interesting Ep</title>
+			<description>
+				Blah Blah
+			</description>
+			<pubDate>Sat 05 Jun 2021 16:57:00 -0700</pubDate>
+			<enclosure url="https://data/2" length="3" type="audio/mpeg" />
+		</item>
+	</channel>
+</rss>
