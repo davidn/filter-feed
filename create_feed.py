@@ -15,8 +15,6 @@ FLAGS = flags.FLAGS
 def main(_):
     client = ndb.Client()
     with client.context():
-        print( FLAGS.url)
-        print( json.loads(FLAGS.query_builder))
         key = FilterFeed(
                 url = FLAGS.url,
                 query_builder = json.loads(FLAGS.query_builder),
