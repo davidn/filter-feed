@@ -19,7 +19,7 @@ def main(_):
                 url = FLAGS.url,
                 query_builder = json.loads(FLAGS.query_builder),
                 ).put()
-        print(f"https://filter-feed.newg.as/{key.id()}")
+        print(f"https://filter-feed.newg.as/v1/{key.id()}")
 
 if __name__ == '__main__':
     app.run(main)
