@@ -67,6 +67,13 @@ if "LOG_LEVEL" in os.environ:
     flask_log.setLevel(log_level)
 
 
+# Sadly ElementTree namespace registry is global. Lets just do some common namespaces
+ET.register_namespace('atom', 'http://www.w3.org/2005/Atom')
+ET.register_namespace('itunes', 'http://www.itunes.com/dtds/podcast-1.0.dtd')
+ET.register_namespace('googleplay', 'http://www.google.com/schemas/play-podcasts/1.0')
+ET.register_namespace('media', 'http://search.yahoo.com/mrss/')
+ET.register_namespace('content', 'http://purl.org/rss/1.0/modules/content/')
+
 
 @dataclass
 class Item:
@@ -156,15 +163,15 @@ def handleHttp(request: flask.Request, key: str) -> flask.Response:
         upstream = requests.get(settings.url)
         with tracer.span(name='parse'):
             root = ET.fromstring(upstream.text)
-        if detectRss(upstream.headers['Content-Type'], root):
+        if detectRss(upstream.headers.get('Content-Type', None), root):
             modifyRss(root, settings)
-        elif detectAtom(upstream.headers['Content-Type'], root):
+        elif detectAtom(upstream.headers.get('Content-Type', None), root):
             modifyAtom(root, settings)
         else:
             logging.error('Could not detect content-type, returning XML unmodified')
         with tracer.span(name='serialize'):
             res.set_data(ET.tostring(root, encoding='unicode') )
-            res.content_type = upstream.headers['Content-Type']
+            res.content_type = upstream.headers.get('Content-Type', None)
     except Exception as e:
         logging.exception(e)
         if STACKDRIVER_ERROR_REPORTING:
