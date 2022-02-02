@@ -1,5 +1,5 @@
-
-from google.cloud import ndb
+from typing import Any
+from google.cloud import ndb  # type: Any
 from validators import url
 
 from jqqb_evaluator.evaluator import Evaluator
@@ -16,5 +16,5 @@ def validate_jqqb(prop, value):
 
 class FilterFeed(ndb.Model):
     url = ndb.StringProperty(required=True, validator=validate_url)
-    query_builder = ndb.JsonProperty(required=True, validator=validate_jqqb) #pytype: disable=wrong-arg-types
+    query_builder = ndb.JsonProperty(required=True, validator=validate_jqqb)
 
