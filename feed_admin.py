@@ -2,8 +2,9 @@
 
 import json
 from datetime import datetime
+from typing import Any
 
-from google.cloud import ndb
+from google.cloud import ndb  # type: Any
 from absl import app, flags
 from validators import url
 from jqqb_evaluator.evaluator import Evaluator
