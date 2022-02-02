@@ -143,14 +143,14 @@ def detectRss(content_type: str, root: ET.Element) -> bool:
             "application/rss+xml",
             ):
         return True
-    return root.tag == "rss"
+    return root.tag in "rss"
 
 def detectAtom(content_type: str, root: ET.Element) -> bool:
     if content_type in (
             "application/atom+xml",
             ):
         return True
-    return root.tag == "feed"
+    return root.tag in ("feed", "{http://www.w3.org/2005/Atom}feed")
 
 
 def handleHttp(request: flask.Request, key: str) -> flask.Response:

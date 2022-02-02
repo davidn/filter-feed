@@ -22,6 +22,14 @@ class DetectTest(unittest.TestCase):
       self.assertFalse(detectRss(ct, xml))
       self.assertTrue(detectAtom(ct, xml))
 
+    def test_AtomFromXMLWithNamespace(self):
+      xml = ET.fromstring(
+              "<feed xmlns=\"http://www.w3.org/2005/Atom\"></feed>"
+              )
+      ct = "application/xml"
+      self.assertFalse(detectRss(ct, xml))
+      self.assertTrue(detectAtom(ct, xml))
+
     def test_RSSFromContentType(self):
       xml = ET.fromstring(
               "<mystery></mystery>"
