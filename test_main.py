@@ -116,3 +116,48 @@ class ModifyRssTest(unittest.TestCase):
       modifyRss(xml_in.getroot(), ff)
       self.assertEqual(ET.tostring(xml_in.getroot()), ET.tostring(xml_check.getroot()))
 
+class ModifyAtomTest(unittest.TestCase):
+    def test_title(self):
+      xml = ET.fromstring(
+              "<feed xmlns=\"http://www.w3.org/2005/Atom\"><title>foo</title></feed>"
+              )
+      ff = FilterFeed()
+      modifyAtom(xml, ff)
+      self.assertEqual(xml.find("./{http://www.w3.org/2005/Atom}title").text, "foo (filtered)")
+
+    def test_remove(self):
+      xml = ET.fromstring(
+              "<feed xmlns=\"http://www.w3.org/2005/Atom\"><title>asdf</title><entry><title>foo</title></entry></feed>"
+              )
+      ff = FilterFeed(query_builder={
+          "condition": "AND",
+          "rules": [{
+              "id": "X",
+              "field": "title",
+              "type": "string",
+              "input": "text",
+              "operator": "equal",
+              "value": "foo"
+              }]})
+      modifyAtom(xml, ff)
+      self.assertIsNone(xml.find(".//{http://www.w3.org/2005/Atom}entry/{http://www.w3.org/2005/Atom}title"))
+      self.assertIsNotNone(xml.find("./{http://www.w3.org/2005/Atom}title"), "Accidentally removed title")
+
+    def test_keep(self):
+      xml = ET.fromstring(
+              "<feed xmlns=\"http://www.w3.org/2005/Atom\"><title>asdf</title><entry><title>foo</title></entry></feed>"
+              )
+      ff = FilterFeed(query_builder={
+          "condition": "AND",
+          "rules": [{
+              "id": "X",
+              "field": "title",
+              "type": "string",
+              "input": "text",
+              "operator": "equal",
+              "value": "bar"
+              }]})
+      modifyAtom(xml, ff)
+      self.assertIsNotNone(xml.find(".//{http://www.w3.org/2005/Atom}entry/{http://www.w3.org/2005/Atom}title"))
+      self.assertIsNotNone(xml.find("./{http://www.w3.org/2005/Atom}title"), "Accidentally removed title")
+

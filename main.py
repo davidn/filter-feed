@@ -98,43 +98,43 @@ class Item:
     @classmethod
     def fromAtomEntry(cls, item: ET.Element) -> 'Item':
         return Item(
-                title=cls._content(item, "title"),
-                date=cls._content(item, "updated", datetime.fromisoformat),
-                description=cls._content(item, "summary")
+                title=cls._content(item, "{*}title"),
+                date=cls._content(item, "{*}updated", datetime.fromisoformat),
+                description=cls._content(item, "{*}summary")
                 )
 
 
 def modifyRss(root: ET.Element, settings: filter_feed.FilterFeed):
     tracer = execution_context.get_opencensus_tracer()
-    title = root.find(".//channel/title")
+    title = root.find(".//{*}channel/{*}title")
     if title is None:
-        logging.warning("Could not find .//channel/title to modify")
+        logging.warning("Could not find .//{*}channel/{*}title to modify")
     else:
         title.text += " (filtered)"
     with tracer.span(name='filter_rss'):
-        chan = root.find("channel")
+        chan = root.find("{*}channel")
         if chan is None:
             raise Exception('Missing channel element')
         evaluator = Evaluator(settings.query_builder)
         delete_items = filter(
                 lambda i: evaluator.object_matches_rules(asdict(Item.fromRssItem(i))),
-                root.iterfind(".//item"))
+                root.iterfind(".//{*}item"))
         for item in delete_items:
             chan.remove(item)
 
 
 def modifyAtom(root: ET.Element, settings: filter_feed.FilterFeed):
     tracer = execution_context.get_opencensus_tracer()
-    title = root.find(".//feed/title")
+    title = root.find("./{*}title")
     if title is None:
-        logging.warning("Could not find .//feed/title to modify")
+        logging.warning("Could not find ./{*}title to modify")
     else:
         title.text += " (filtered)"
     with tracer.span(name='filter_atom'):
         evaluator = Evaluator(settings.query_builder)
         delete_entries = filter(
                 lambda i: evaluator.object_matches_rules(asdict(Item.fromAtomEntry(i))),
-                root.iterfind(".//entry"))
+                root.iterfind(".//{*}entry"))
         for entry in delete_entries:
             root.remove(entry)
 
