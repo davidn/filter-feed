@@ -16,4 +16,5 @@ def validate_jqqb(prop, value):
 
 class FilterFeed(ndb.Model):
     url = ndb.StringProperty(required=True, validator=validate_url)
-    query_builder = ndb.JsonProperty(required=True, validator=validate_jqqb)
+    query_builder = ndb.JsonProperty(required=True, validator=validate_jqqb) #pytype: disable=wrong-arg-types
+
