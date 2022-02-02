@@ -10,7 +10,7 @@ from dataclasses import dataclass, asdict
 from email.utils import parsedate_to_datetime
 
 from absl import logging
-from google.cloud import error_reporting
+import google.cloud.error_reporting
 import google.cloud.logging
 import google.cloud.logging.handlers
 from google.cloud import ndb  # type: Any
@@ -176,9 +176,9 @@ def handleHttp(request: flask.Request, key: str) -> flask.Response:
         logging.exception(e)
         if STACKDRIVER_ERROR_REPORTING:
             try:
-                client = error_reporting.Client()
+                client = google.cloud.error_reporting.Client()
                 client.report_exception(
-                    http_context=error_reporting.build_flask_context(request))
+                    http_context=google.cloud.error_reporting.build_flask_context(request))
             except Exception:
                 logging.exception("Failed to send error report to Google")
         raise
