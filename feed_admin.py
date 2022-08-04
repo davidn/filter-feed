@@ -13,6 +13,7 @@ from filter_feed import FilterFeed
 
 flags.DEFINE_integer("id", None, "ID for previous feed")
 flags.DEFINE_string("url", None, "Upstream feed")
+flags.DEFINE_string("name", None, "nickname for feed")
 flags.DEFINE_string("query_builder", None, "querybuilder string to filter")
 
 @flags.validator('url', 'not a valid url')
@@ -42,7 +43,7 @@ def _CheckFlagsSet(f) -> bool:
 
 FLAGS = flags.FLAGS
 
-def upsert_feed(feed_id, url, query_builder) -> str:
+def upsert_feed(feed_id, url, name, query_builder) -> str:
     client = ndb.Client()
     with client.context():
         if feed_id:
@@ -51,13 +52,15 @@ def upsert_feed(feed_id, url, query_builder) -> str:
             feed = FilterFeed()
         if url:
             feed.url = url
+        if name:
+            feed.name = name
         if query_builder:
             feed.query_builder = json.loads(query_builder)
         key = feed.put()
         return f"https://filter-feed.newg.as/v1/{key.id()}"
 
 def main(_):
-    print(upsert_feed(FLAGS.id, FLAGS.url, FLAGS.query_builder))
+    print(upsert_feed(FLAGS.id, FLAGS.url, FLAGS.name, FLAGS.query_builder))
 
 if __name__ == '__main__':
     app.run(main)

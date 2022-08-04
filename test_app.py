@@ -36,6 +36,7 @@ class TestApp(unittest.TestCase):
         lookup_res = datastore_pb2.LookupResponse()
         e = lookup_res.found.add().entity
         e.properties["url"].string_value = "http://example.com/a"
+        e.properties["name"].string_value = "nickname"
         e.properties["query_builder"].blob_value = b'{"condition":"AND","rules":[{"id":"X","field":"title","type":"string","input":"text","operator":"contains","value":"Boring"}]}'
         path = e.key.partition_id.project_id='blah'
         path = e.key.path.add()

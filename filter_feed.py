@@ -16,5 +16,6 @@ def validate_jqqb(prop, value):
 
 class FilterFeed(ndb.Model):
     url = ndb.StringProperty(required=True, validator=validate_url)
+    name = ndb.StringProperty()
     query_builder = ndb.JsonProperty(required=True, validator=validate_jqqb)
 
