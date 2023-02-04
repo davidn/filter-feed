@@ -153,13 +153,15 @@ def detectAtom(content_type: str, root: ET.Element) -> bool:
     return root.tag in ("feed", "{http://www.w3.org/2005/Atom}feed")
 
 
-def handleHttp(request: flask.Request, key: str) -> flask.Response:
+def handleHttp(request: flask.Request, key: int) -> flask.Response:
     tracer = execution_context.get_opencensus_tracer()
     res = flask.Response()
     try:
         client = ndb.Client()
         with client.context():
-            settings = filter_feed.FilterFeed.get_by_id(int(key))
+            settings = filter_feed.FilterFeed.get_by_id(key)
+        if settings is None:
+            flask.abort(404)
         upstream = requests.get(settings.url)
         with tracer.span(name='parse'):
             root = ET.fromstring(upstream.text)

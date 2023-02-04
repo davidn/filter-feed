@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import os
 import unittest
 from unittest import mock
 from xml.etree import ElementTree as ET
@@ -11,6 +12,8 @@ import ndb_mocks
 from app import app
 
 app.testing = True
+
+TESTDATA = os.path.join(os.path.dirname(__file__),  'testdata/')
 
 class TestApp(unittest.TestCase):
     def run(self, result=None):
@@ -29,7 +32,7 @@ class TestApp(unittest.TestCase):
         self.requests = requests_mock.Mocker()
         self.requests.start()
         self.addCleanup(self.requests.stop)
-        with open("testdata/rss.xml") as test_in:
+        with open(os.path.join(TESTDATA,  "rss.xml")) as test_in:
             self.requests.get('http://example.com/a', text=test_in.read())
 
     def testApp(self):
@@ -44,5 +47,20 @@ class TestApp(unittest.TestCase):
         path.id=123
         self.ndb.stub.Lookup.set_val(lookup_res)
         r = self.client.get('/v1/123')
-        with open("testdata/rss-filtered.xml") as test_out:
+        with open(os.path.join(TESTDATA,  "rss-filtered.xml")) as test_out:
             self.assertEquals(r.data, ET.tostring(ET.fromstring((test_out.read()))))
+    
+    def testStrIdIs404(self):
+        r = self.client.get('/v1/abc')
+        self.assertEquals(r.status_code,  404)
+    
+    def testUnkown404(self):
+        lookup_res = datastore_pb2.LookupResponse()
+        e = lookup_res.missing.add().entity
+        path = e.key.partition_id.project_id='blah'
+        path = e.key.path.add()
+        path.kind="FilterFeed"
+        path.id=321
+        self.ndb.stub.Lookup.set_val(lookup_res)
+        r = self.client.get('/v1/321')
+        self.assertEquals(r.status_code,  404)

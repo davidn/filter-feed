@@ -1,9 +1,12 @@
 
+import os
 import unittest
 import xml.etree.ElementTree as ET
 
 from main import detectRss, detectAtom, modifyRss, modifyAtom
 from filter_feed import FilterFeed
+
+TESTDATA = os.path.join(os.path.dirname(__file__),  'testdata/')
 
 class DetectTest(unittest.TestCase):
     def test_RSSFromXML(self):
@@ -101,8 +104,8 @@ class ModifyRssTest(unittest.TestCase):
 
 
     def test_golden(self):
-      xml_in = ET.parse("testdata/rss.xml")
-      xml_check = ET.parse("testdata/rss-filtered.xml")
+      xml_in = ET.parse(os.path.join(TESTDATA, "rss.xml"))
+      xml_check = ET.parse(os.path.join(TESTDATA, "rss-filtered.xml"))
       ff = FilterFeed(query_builder={
           "condition": "AND",
           "rules": [{
