@@ -21,7 +21,6 @@ import xml.etree.ElementTree as ET
 import flask
 from jqqb_evaluator.evaluator import Evaluator
 
-
 STACKDRIVER_ERROR_REPORTING = os.environ.get("STACKDRIVER_ERROR_REPORTING", "").lower() in (1, 'true', 't')
 LOG_HANDLER = os.environ.get("LOG_HANDLER", "").lower()
 PROJECT_ID = os.environ.get("PROJECT_ID", "")
@@ -98,43 +97,43 @@ class Item:
     @classmethod
     def fromAtomEntry(cls, item: ET.Element) -> 'Item':
         return Item(
-                title=cls._content(item, "{*}title"),
-                date=cls._content(item, "{*}updated", datetime.fromisoformat),
-                description=cls._content(item, "{*}summary")
+                title=cls._content(item, "{http://www.w3.org/2005/Atom}title"),
+                date=cls._content(item, "{http://www.w3.org/2005/Atom}updated", datetime.fromisoformat),
+                description=cls._content(item, "{http://www.w3.org/2005/Atom}summary")
                 )
 
 
 def modifyRss(root: ET.Element, settings: filter_feed.FilterFeed):
     tracer = execution_context.get_opencensus_tracer()
-    title = root.find(".//{*}channel/{*}title")
+    title = root.find(".//channel/title")
     if title is None:
-        logging.warning("Could not find .//{*}channel/{*}title to modify")
+        logging.warning("Could not find .//channel/title to modify")
     else:
         title.text += " (filtered)"
     with tracer.span(name='filter_rss'):
-        chan = root.find("{*}channel")
+        chan = root.find("channel")
         if chan is None:
             raise Exception('Missing channel element')
         evaluator = Evaluator(settings.query_builder)
         delete_items = filter(
                 lambda i: evaluator.object_matches_rules(asdict(Item.fromRssItem(i))),
-                root.iterfind(".//{*}item"))
+                root.iterfind(".//item"))
         for item in delete_items:
             chan.remove(item)
 
 
 def modifyAtom(root: ET.Element, settings: filter_feed.FilterFeed):
     tracer = execution_context.get_opencensus_tracer()
-    title = root.find("./{*}title")
+    title = root.find("./{http://www.w3.org/2005/Atom}title")
     if title is None:
-        logging.warning("Could not find ./{*}title to modify")
+        logging.warning("Could not find ./{http://www.w3.org/2005/Atom}title to modify")
     else:
         title.text += " (filtered)"
     with tracer.span(name='filter_atom'):
         evaluator = Evaluator(settings.query_builder)
         delete_entries = filter(
                 lambda i: evaluator.object_matches_rules(asdict(Item.fromAtomEntry(i))),
-                root.iterfind(".//{*}entry"))
+                root.iterfind(".//{http://www.w3.org/2005/Atom}entry"))
         for entry in delete_entries:
             root.remove(entry)
 
