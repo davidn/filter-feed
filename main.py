@@ -67,13 +67,13 @@ if "LOG_LEVEL" in os.environ:
     flask_log.setLevel(log_level)
 
 
-# Sadly ElementTree namespace registry is global. Lets just do some common namespaces
-ET.register_namespace('atom', 'http://www.w3.org/2005/Atom')
-ET.register_namespace('itunes', 'http://www.itunes.com/dtds/podcast-1.0.dtd')
-ET.register_namespace('googleplay', 'http://www.google.com/schemas/play-podcasts/1.0')
-ET.register_namespace('media', 'http://search.yahoo.com/mrss/')
-ET.register_namespace('content', 'http://purl.org/rss/1.0/modules/content/')
-
+class NamespaceRecordingTreeBuilder(ET.TreeBuilder):
+    def __init__(self, *args,  **kwargs):
+        self.ns = {}
+        super().__init__(*args,  **kwargs)
+    
+    def start_ns(self,  prefix,  uri):
+        self.ns[prefix] = uri
 
 @dataclass
 class Item:
@@ -164,7 +164,8 @@ def handleHttp(request: flask.Request, key: int) -> flask.Response:
             flask.abort(404)
         upstream = requests.get(settings.url)
         with tracer.span(name='parse'):
-            root = ET.fromstring(upstream.text)
+            tb = NamespaceRecordingTreeBuilder()
+            root = ET.fromstring(upstream.text,  parser=ET.XMLParser(target=tb))
         if detectRss(upstream.headers.get('Content-Type', None), root):
             modifyRss(root, settings)
         elif detectAtom(upstream.headers.get('Content-Type', None), root):
@@ -172,7 +173,12 @@ def handleHttp(request: flask.Request, key: int) -> flask.Response:
         else:
             logging.error('Could not detect content-type, returning XML unmodified')
         with tracer.span(name='serialize'):
+            nsmap = ET._namespace_map.copy()
+            for prefix,  uri in tb.ns.items():
+                ET.register_namespace(prefix,  uri)
             res.set_data(ET.tostring(root, encoding='unicode') )
+            ET._namespace_map.clear()
+            ET._namespace_map.update(nsmap)
             res.content_type = upstream.headers.get('Content-Type', None)
     except Exception as e:
         logging.exception(e)

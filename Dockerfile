@@ -8,4 +8,4 @@ RUN pip install -r requirements.txt
 COPY *.py ./
 COPY source-context.json ./
 
-CMD exec python3 -m gunicorn.app.wsgiapp --bind :$PORT --workers 3 --threads 8 app:app
+CMD exec python3 -m gunicorn.app.wsgiapp --bind :$PORT --workers 6 --threads 1 app:app

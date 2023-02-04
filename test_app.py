@@ -47,8 +47,9 @@ class TestApp(unittest.TestCase):
         path.id=123
         self.ndb.stub.Lookup.set_val(lookup_res)
         r = self.client.get('/v1/123')
-        with open(os.path.join(TESTDATA,  "rss-filtered.xml")) as test_out:
-            self.assertEquals(r.data, ET.tostring(ET.fromstring((test_out.read()))))
+        self.assertEqual(
+            ET.canonicalize(r.data),
+            ET.canonicalize(from_file=os.path.join(TESTDATA,  "rss-filtered.xml")))
     
     def testStrIdIs404(self):
         r = self.client.get('/v1/abc')
