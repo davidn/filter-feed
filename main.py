@@ -15,7 +15,7 @@ import google.cloud.logging
 import google.cloud.logging.handlers
 from google.cloud import ndb  # type: Any
 import requests
-from typing import Any, Sequence, Optional, Callable, TypeVar
+from typing import Optional, Callable, TypeVar
 from opencensus.trace import config_integration, execution_context
 import xml.etree.ElementTree as ET
 import flask
