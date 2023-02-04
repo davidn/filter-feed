@@ -53,7 +53,7 @@ class TestApp(unittest.TestCase):
     
     def testStrIdIs404(self):
         r = self.client.get('/v1/abc')
-        self.assertEquals(r.status_code,  404)
+        self.assertEqual(r.status_code,  404)
     
     def testUnkown404(self):
         lookup_res = datastore_pb2.LookupResponse()
@@ -64,4 +64,4 @@ class TestApp(unittest.TestCase):
         path.id=321
         self.ndb.stub.Lookup.set_val(lookup_res)
         r = self.client.get('/v1/321')
-        self.assertEquals(r.status_code,  404)
+        self.assertEqual(r.status_code,  404)
