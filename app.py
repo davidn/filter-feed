@@ -42,7 +42,7 @@ if TRACE_PROPAGATE == "google":
 
 if TRACE_EXPORTER == "stackdriver":
     tracer_provider.add_span_processor(SimpleSpanProcessor(CloudTraceSpanExporter()))
-else:
+elif TRACE_EXPORTER == "stdout":
     tracer_provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))
 
 trace.set_tracer_provider(tracer_provider)
