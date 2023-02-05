@@ -1,4 +1,5 @@
 
+from typing import Any
 from google.cloud import ndb  # type: Any
 from validators import url
 

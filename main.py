@@ -13,7 +13,7 @@ from absl import logging
 import google.cloud.error_reporting
 import google.cloud.logging
 import google.cloud.logging.handlers
-from google.cloud import ndb  # type: Any
+from google.cloud import ndb
 import requests
 from typing import Optional, Callable, TypeVar
 from opentelemetry import  trace

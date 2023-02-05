@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import os
+from typing import Any
 
 from flask import Flask, request
 from main import handleHttp
