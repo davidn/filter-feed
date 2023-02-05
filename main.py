@@ -13,9 +13,9 @@ from absl import logging
 import google.cloud.error_reporting
 import google.cloud.logging
 import google.cloud.logging.handlers
-from google.cloud import ndb
+from google.cloud import ndb  # type: Any
 import requests
-from typing import Optional, Callable, TypeVar
+from typing import Optional, Callable, TypeVar,  Any
 from opentelemetry import  trace
 import xml.etree.ElementTree as ET
 import flask
@@ -168,12 +168,14 @@ def handleHttp(request: flask.Request, key: int) -> flask.Response:
         else:
             logging.error('Could not detect content-type, returning XML unmodified')
         with tracer.start_as_current_span('serialize'):
+            # pytype: disable=module-attr
             nsmap = ET._namespace_map.copy()
             for prefix,  uri in tb.ns.items():
                 ET.register_namespace(prefix,  uri)
             res.set_data(ET.tostring(root, encoding='unicode') )
             ET._namespace_map.clear()
             ET._namespace_map.update(nsmap)
+            # pytype: enable=module-attr
             res.content_type = upstream.headers.get('Content-Type', None)
     except Exception as e:
         logging.exception(e)
