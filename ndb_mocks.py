@@ -35,12 +35,19 @@ def MockUnaryUnaryCallable():
         return unun
 
 def MockDatastoreStub():
-    stub = mock.Mock(spec=("Lookup", "BeginTransaction","Commit", "AllocateIds", "Rollback"))
-    stub.Lookup = MockUnaryUnaryCallable()
-    stub.Commit = MockUnaryUnaryCallable()
-    stub.BeginTransaction = MockUnaryUnaryCallable()
-    stub.AllocateIds = MockUnaryUnaryCallable()
-    stub.Rollback = MockUnaryUnaryCallable()
+    stub = mock.Mock(spec=("lookup", "run_query",  "run_aggregation_query","begin_transaction", "commit","allocate_ids", "rollback",  "reserve_ids",  "delete_operation",  "cancel_operation", "get_operation",  "list_operation"))
+    stub.lookup = MockUnaryUnaryCallable()
+    stub.run_query = MockUnaryUnaryCallable()
+    stub.run_aggregation_query = MockUnaryUnaryCallable()
+    stub.begin_transaction = MockUnaryUnaryCallable()
+    stub.commit = MockUnaryUnaryCallable()
+    stub.rollback = MockUnaryUnaryCallable()
+    stub.allocate_ids = MockUnaryUnaryCallable()
+    stub.reserve_ids = MockUnaryUnaryCallable()
+    stub.get_oeration = MockUnaryUnaryCallable()
+    stub.list_operations = MockUnaryUnaryCallable()
+    stub.delete_operation = MockUnaryUnaryCallable()
+    stub.cancel_operation = MockUnaryUnaryCallable()
     return stub
 
 def MockNdbClient():

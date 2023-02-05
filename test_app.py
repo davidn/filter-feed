@@ -6,7 +6,7 @@ from unittest import mock
 from xml.etree import ElementTree as ET
 
 import requests_mock
-from google.cloud.datastore_v1.proto import datastore_pb2
+from google.cloud.datastore_v1 import types as datastore_type
 
 import ndb_mocks
 from app import app
@@ -14,7 +14,6 @@ from app import app
 app.testing = True
 
 TESTDATA = os.path.join(os.path.dirname(__file__),  'testdata/')
-
 class TestApp(unittest.TestCase):
     def run(self, result=None):
         with app.test_client() as client:
@@ -36,16 +35,14 @@ class TestApp(unittest.TestCase):
             self.requests.get('http://example.com/a', text=test_in.read())
 
     def testApp(self):
-        lookup_res = datastore_pb2.LookupResponse()
-        e = lookup_res.found.add().entity
-        e.properties["url"].string_value = "http://example.com/a"
-        e.properties["name"].string_value = "nickname"
-        e.properties["query_builder"].blob_value = b'{"condition":"AND","rules":[{"id":"X","field":"title","type":"string","input":"text","operator":"contains","value":"Boring"}]}'
-        path = e.key.partition_id.project_id='blah'
-        path = e.key.path.add()
-        path.kind="FilterFeed"
-        path.id=123
-        self.ndb.stub.Lookup.set_val(lookup_res)
+        e = datastore_type.Entity(
+          properties = {
+            "url": datastore_type.Value(string_value="http://example.com/a"), 
+            "name": datastore_type.Value(string_value="nickname"),  
+            "query_builder": datastore_type.Value(blob_value=b'{"condition":"AND","rules":[{"id":"X","field":"title","type":"string","input":"text","operator":"contains","value":"Boring"}]}')}, 
+          key = {"partition_id":{"project_id":"blah"},"path": [{"kind": "FilterFeed", "id": 123}]})
+        lookup_res = datastore_type.LookupResponse(found=[{"entity":e}])
+        self.ndb.stub.lookup.set_val(lookup_res)
         r = self.client.get('/v1/123')
         self.assertEqual(
             ET.canonicalize(r.data),
@@ -56,12 +53,8 @@ class TestApp(unittest.TestCase):
         self.assertEqual(r.status_code,  404)
     
     def testUnkown404(self):
-        lookup_res = datastore_pb2.LookupResponse()
-        e = lookup_res.missing.add().entity
-        path = e.key.partition_id.project_id='blah'
-        path = e.key.path.add()
-        path.kind="FilterFeed"
-        path.id=321
-        self.ndb.stub.Lookup.set_val(lookup_res)
+        e = datastore_type.Entity(key = {"partition_id":{"project_id":"blah"},"path": [{"kind": "FilterFeed", "id": 321}]})
+        lookup_res = datastore_type.LookupResponse(missing=[{"entity":e}])
+        self.ndb.stub.lookup.set_val(lookup_res)
         r = self.client.get('/v1/321')
         self.assertEqual(r.status_code,  404)

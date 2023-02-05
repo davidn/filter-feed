@@ -11,7 +11,6 @@ from opencensus.trace import (
     samplers, print_exporter, logging_exporter)
 from opencensus.trace.propagation import (
     google_cloud_format, trace_context_http_header_format)
-from opencensus.ext.stackdriver import trace_exporter
 
 try:
     import googleclouddebugger
@@ -28,6 +27,7 @@ if TRACE_PROPAGATE == "google":
 else:
     propagator = trace_context_http_header_format.TraceContextPropagator()
 if TRACE_EXPORTER == "stackdriver":
+    from opencensus.ext.stackdriver import trace_exporter
     exporter = trace_exporter.StackdriverExporter(transport=AsyncTransport)
     sampler = samplers.AlwaysOnSampler()
 elif TRACE_EXPORTER == "log":
