@@ -2,7 +2,6 @@ absl-py==1.4.0
 google-cloud-error-reporting==1.8.1
 Flask==2.2.2
 gunicorn==20.1.0
-google-python-cloud-debugger==3.3
 google-cloud-ndb==2.1.0
 validators==0.20.0
 jqqb-evaluator==0.0.1

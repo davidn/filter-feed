@@ -9,22 +9,13 @@ from opentelemetry import trace
 from opentelemetry.exporter.cloud_trace import CloudTraceSpanExporter
 from opentelemetry.instrumentation.flask import FlaskInstrumentor
 from opentelemetry.propagate import set_global_textmap
-from opentelemetry.propagators.cloud_trace_propagator import (
-    CloudTraceFormatPropagator,
-)
+from opentelemetry.propagators.cloud_trace_propagator import CloudTraceFormatPropagator
+
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor,  BatchSpanProcessor,  ConsoleSpanExporter
 from opentelemetry.instrumentation.grpc import GrpcInstrumentorClient
 from opentelemetry.instrumentation.requests import RequestsInstrumentor
-
-
-try:
-    import googleclouddebugger
-    googleclouddebugger.enable(
-            breakpoint_enable_canary=False)
-except ImportError:
-    pass
 
 TRACE_EXPORTER = os.environ.get("TRACE_EXPORTER", "").lower()
 TRACE_PROPAGATE = os.environ.get("TRACE_PROPAGATE", "").lower()
