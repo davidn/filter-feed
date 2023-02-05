@@ -1,16 +1,22 @@
 #!/usr/bin/env python
 
 import os
-import logging
 
 from flask import Flask, request
 from main import handleHttp
-from opencensus.common.transports.async_ import AsyncTransport
-from opencensus.ext.flask.flask_middleware import FlaskMiddleware
-from opencensus.trace import (
-    samplers, print_exporter, logging_exporter)
-from opencensus.trace.propagation import (
-    google_cloud_format, trace_context_http_header_format)
+from opentelemetry import trace
+from opentelemetry.exporter.cloud_trace import CloudTraceSpanExporter
+from opentelemetry.instrumentation.flask import FlaskInstrumentor
+from opentelemetry.propagate import set_global_textmap
+from opentelemetry.propagators.cloud_trace_propagator import (
+    CloudTraceFormatPropagator,
+)
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor,  BatchSpanProcessor,  ConsoleSpanExporter
+from opentelemetry.instrumentation.grpc import GrpcInstrumentorClient
+from opentelemetry.instrumentation.requests import RequestsInstrumentor
+
 
 try:
     import googleclouddebugger
@@ -22,35 +28,27 @@ except ImportError:
 TRACE_EXPORTER = os.environ.get("TRACE_EXPORTER", "").lower()
 TRACE_PROPAGATE = os.environ.get("TRACE_PROPAGATE", "").lower()
 
-if TRACE_PROPAGATE == "google":
-    propagator = google_cloud_format.GoogleCloudFormatPropagator()
-else:
-    propagator = trace_context_http_header_format.TraceContextPropagator()
-if TRACE_EXPORTER == "stackdriver":
-    from opencensus.ext.stackdriver import trace_exporter
-    exporter = trace_exporter.StackdriverExporter(transport=AsyncTransport)
-    sampler = samplers.AlwaysOnSampler()
-elif TRACE_EXPORTER == "log":
-    exporter = logging_exporter.LoggingExporter(
-        handler=logging.NullHandler(), transport=AsyncTransport)
-    sampler = samplers.AlwaysOnSampler()
-elif TRACE_EXPORTER == "stdout":
-    exporter = print_exporter.PrintExporter(transport=AsyncTransport)
-    sampler = samplers.AlwaysOnSampler()
-else:
-    exporter = print_exporter.PrintExporter(transport=AsyncTransport)
-    sampler = samplers.AlwaysOffSampler()
 
+resource = Resource.create({"service.name": "filter-feed"})
+tracer_provider = TracerProvider(resource=resource)
+
+RequestsInstrumentor().instrument()
+
+grpc_client_instrumentor = GrpcInstrumentorClient()
+grpc_client_instrumentor.instrument()
+
+if TRACE_PROPAGATE == "google":
+    set_global_textmap(CloudTraceFormatPropagator())
+
+if TRACE_EXPORTER == "stackdriver":
+    tracer_provider.add_span_processor(SimpleSpanProcessor(CloudTraceSpanExporter()))
+else:
+    tracer_provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))
+
+trace.set_tracer_provider(tracer_provider)
 
 app = Flask(__name__)
-app.config['OPENCENSUS'] = {
-    'TRACE': {
-        'PROPAGATOR': propagator,
-        'EXPORTER': exporter,
-        'SAMPLER': sampler
-    }
-}
-FlaskMiddleware(app)
+FlaskInstrumentor().instrument_app(app)
 
 @app.route('/v1/<int:key>')
 def entry(key):

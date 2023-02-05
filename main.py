@@ -16,7 +16,7 @@ import google.cloud.logging.handlers
 from google.cloud import ndb  # type: Any
 import requests
 from typing import Optional, Callable, TypeVar
-from opencensus.trace import config_integration, execution_context
+from opentelemetry import  trace
 import xml.etree.ElementTree as ET
 import flask
 from jqqb_evaluator.evaluator import Evaluator
@@ -25,7 +25,7 @@ STACKDRIVER_ERROR_REPORTING = os.environ.get("STACKDRIVER_ERROR_REPORTING", "").
 LOG_HANDLER = os.environ.get("LOG_HANDLER", "").lower()
 PROJECT_ID = os.environ.get("PROJECT_ID", "")
 
-config_integration.trace_integrations(['logging', 'google_cloud_clientlibs'])
+tracer = trace.get_tracer(__name__)
 
 if LOG_HANDLER == 'absl':
     logging.use_absl_handler()
@@ -36,21 +36,21 @@ elif LOG_HANDLER == "stackdriver":
 elif LOG_HANDLER == 'structured':
     class StructureLogFormater(py_logging.Formatter):
         def format(self, record):
-            context = execution_context.get_opencensus_tracer().span_context
+            span = trace.get_current_span()
             structured = {
                 "message": super().format(record),
                 "time": datetime.fromtimestamp(record.created, timezone.utc).isoformat(),
                 "severity": record.levelname,
-                "logging.googleapis.com/trace": f"projects/{PROJECT_ID}/traces/{context.trace_id}",
-                "logging.googleapis.com/spanId": context.span_id,
                 "logging.googleapis.com/sourceLocation": {
                     "file": record.filename,
                     "line": record.lineno,
                     "function": record.funcName
                 }
             }
-            if context.span_id:
-                structured["logging.googleapis.com/spanId"] = context.span_id
+            if hasattr(span,  "trace_id"):
+                structured["logging.googleapis.com/trace"] =  f"projects/{PROJECT_ID}/traces/{span.trace_id}"
+            if hasattr(span,  "span_id"):
+                structured["logging.googleapis.com/spanId"] =  span.span_id
             return json.dumps(structured)
     handler = py_logging.StreamHandler()
     handler.setFormatter(StructureLogFormater())
@@ -64,7 +64,6 @@ if "LOG_LEVEL" in os.environ:
     requests_log.propagate = True
     flask_log = py_logging.getLogger("app")
     flask_log.setLevel(log_level)
-
 
 class NamespaceRecordingTreeBuilder(ET.TreeBuilder):
     def __init__(self, *args,  **kwargs):
@@ -104,13 +103,12 @@ class Item:
 
 
 def modifyRss(root: ET.Element, settings: filter_feed.FilterFeed):
-    tracer = execution_context.get_opencensus_tracer()
     title = root.find(".//channel/title")
     if title is None:
         logging.warning("Could not find .//channel/title to modify")
     else:
         title.text += " (filtered)"
-    with tracer.span(name='filter_rss'):
+    with tracer.start_as_current_span('filter_rss'):
         chan = root.find("channel")
         if chan is None:
             raise Exception('Missing channel element')
@@ -123,13 +121,12 @@ def modifyRss(root: ET.Element, settings: filter_feed.FilterFeed):
 
 
 def modifyAtom(root: ET.Element, settings: filter_feed.FilterFeed):
-    tracer = execution_context.get_opencensus_tracer()
     title = root.find("./{http://www.w3.org/2005/Atom}title")
     if title is None:
         logging.warning("Could not find ./{http://www.w3.org/2005/Atom}title to modify")
     else:
         title.text += " (filtered)"
-    with tracer.span(name='filter_atom'):
+    with tracer.start_as_current_span('filter_atom'):
         evaluator = Evaluator(settings.query_builder)
         delete_entries = filter(
                 lambda i: evaluator.object_matches_rules(asdict(Item.fromAtomEntry(i))),
@@ -153,7 +150,6 @@ def detectAtom(content_type: str, root: ET.Element) -> bool:
 
 
 def handleHttp(request: flask.Request, key: int) -> flask.Response:
-    tracer = execution_context.get_opencensus_tracer()
     res = flask.Response()
     try:
         client = ndb.Client()
@@ -162,7 +158,7 @@ def handleHttp(request: flask.Request, key: int) -> flask.Response:
         if settings is None:
             flask.abort(404)
         upstream = requests.get(settings.url)
-        with tracer.span(name='parse'):
+        with tracer.start_as_current_span('parse'):
             tb = NamespaceRecordingTreeBuilder()
             root = ET.fromstring(upstream.text,  parser=ET.XMLParser(target=tb))
         if detectRss(upstream.headers.get('Content-Type', None), root):
@@ -171,7 +167,7 @@ def handleHttp(request: flask.Request, key: int) -> flask.Response:
             modifyAtom(root, settings)
         else:
             logging.error('Could not detect content-type, returning XML unmodified')
-        with tracer.span(name='serialize'):
+        with tracer.start_as_current_span('serialize'):
             nsmap = ET._namespace_map.copy()
             for prefix,  uri in tb.ns.items():
                 ET.register_namespace(prefix,  uri)
