@@ -36,7 +36,7 @@ elif LOG_HANDLER == "stackdriver":
 elif LOG_HANDLER == 'structured':
     class StructureLogFormater(py_logging.Formatter):
         def format(self, record):
-            span = trace.get_current_span()
+            span_context = trace.get_current_span().get_span_context()
             structured = {
                 "message": super().format(record),
                 "time": datetime.fromtimestamp(record.created, timezone.utc).isoformat(),
@@ -47,10 +47,10 @@ elif LOG_HANDLER == 'structured':
                     "function": record.funcName
                 }
             }
-            if hasattr(span,  "trace_id"):
-                structured["logging.googleapis.com/trace"] =  f"projects/{PROJECT_ID}/traces/{span.trace_id}"
-            if hasattr(span,  "span_id"):
-                structured["logging.googleapis.com/spanId"] =  span.span_id
+            if span_context.trace_id:
+                structured["logging.googleapis.com/trace"] =  f"projects/{PROJECT_ID}/traces/{span_context.trace_id}"
+            if span_context.span_id:
+                structured["logging.googleapis.com/spanId"] =  span_context.span_id
             return json.dumps(structured)
     handler = py_logging.StreamHandler()
     handler.setFormatter(StructureLogFormater())
