@@ -48,9 +48,9 @@ elif LOG_HANDLER == 'structured':
                 }
             }
             if span_context.trace_id:
-                structured["logging.googleapis.com/trace"] =  f"projects/{PROJECT_ID}/traces/{span_context.trace_id}"
+                structured["logging.googleapis.com/trace"] =  f"projects/{PROJECT_ID}/traces/{span_context.trace_id:x}"
             if span_context.span_id:
-                structured["logging.googleapis.com/spanId"] =  span_context.span_id
+                structured["logging.googleapis.com/spanId"] =  f"{span_context.span_id:x}"
             return json.dumps(structured)
     handler = py_logging.StreamHandler()
     handler.setFormatter(StructureLogFormater())
