@@ -24,7 +24,9 @@ TRACE_PROPAGATE = os.environ.get("TRACE_PROPAGATE", "").lower()
 resource = Resource.create({"service.name": "filter-feed"})
 tracer_provider = TracerProvider(resource=resource)
 
-RequestsInstrumentor().instrument()
+if TRACE_EXPORTER != "stackdriver":
+    # If you instrument requests while using CloudTraceSpanExporter in SimpleSpanProcessor mode you get a loop
+    RequestsInstrumentor().instrument()
 
 grpc_client_instrumentor = GrpcInstrumentorClient()
 grpc_client_instrumentor.instrument()
