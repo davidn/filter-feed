@@ -2,9 +2,15 @@
 
 import os
 from typing import Any
+import json
+import logging as py_logging
+from datetime import datetime, timezone
 
 from flask import Flask, request
-from main import handleHttp
+from absl import logging
+import google.cloud.error_reporting
+import google.cloud.logging
+import google.cloud.logging.handlers
 from opentelemetry import trace
 from opentelemetry.exporter.cloud_trace import CloudTraceSpanExporter
 from opentelemetry.instrumentation.flask import FlaskInstrumentor
@@ -12,10 +18,12 @@ from opentelemetry.propagate import set_global_textmap
 from opentelemetry.propagators.cloud_trace_propagator import CloudTraceFormatPropagator
 from opentelemetry.sdk.resources import Resource,  get_aggregated_resources
 from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor,  BatchSpanProcessor,  ConsoleSpanExporter
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor,  ConsoleSpanExporter
 from opentelemetry.instrumentation.grpc import GrpcInstrumentorClient
 from opentelemetry.instrumentation.requests import RequestsInstrumentor
 from opentelemetry.resourcedetector.gcp_resource_detector import GoogleCloudResourceDetector
+
+from filter_feed import handleHttp
 
 TRACE_EXPORTER = os.environ.get("TRACE_EXPORTER", "").lower()
 TRACE_PROPAGATE = os.environ.get("TRACE_PROPAGATE", "").lower()
@@ -42,12 +50,66 @@ elif TRACE_EXPORTER == "stdout":
 
 trace.set_tracer_provider(tracer_provider)
 
+STACKDRIVER_ERROR_REPORTING = os.environ.get("STACKDRIVER_ERROR_REPORTING", "").lower() in (1, 'true', 't')
+LOG_HANDLER = os.environ.get("LOG_HANDLER", "").lower()
+PROJECT_ID = os.environ.get("PROJECT_ID", "")
+
+if LOG_HANDLER == 'absl':
+    logging.use_absl_handler()
+elif LOG_HANDLER == "stackdriver":
+    client = google.cloud.logging.Client()
+    handler = google.cloud.logging.handlers.CloudLoggingHandler(client)
+    google.cloud.logging.handlers.setup_logging(handler)
+elif LOG_HANDLER == 'structured':
+    class StructureLogFormater(py_logging.Formatter):
+        def format(self, record):
+            span_context = trace.get_current_span().get_span_context()
+            structured = {
+                "message": super().format(record),
+                "time": datetime.fromtimestamp(record.created, timezone.utc).isoformat(),
+                "severity": record.levelname,
+                "logging.googleapis.com/sourceLocation": {
+                    "file": record.filename,
+                    "line": record.lineno,
+                    "function": record.funcName
+                }
+            }
+            if span_context.trace_id:
+                structured["logging.googleapis.com/trace"] =  f"projects/{PROJECT_ID}/traces/{span_context.trace_id:x}"
+            if span_context.span_id:
+                structured["logging.googleapis.com/spanId"] =  f"{span_context.span_id:x}"
+            return json.dumps(structured)
+    handler = py_logging.StreamHandler()
+    handler.setFormatter(StructureLogFormater())
+    py_logging.getLogger().addHandler(handler)
+
+if "LOG_LEVEL" in os.environ:
+    log_level = os.environ["LOG_LEVEL"].upper()
+    logging.set_verbosity(log_level)
+    requests_log = py_logging.getLogger("urllib3")
+    requests_log.setLevel(log_level)
+    requests_log.propagate = True
+    flask_log = py_logging.getLogger("app")
+    flask_log.setLevel(log_level)
+
+
 app = Flask(__name__)
 FlaskInstrumentor().instrument_app(app)
 
 @app.route('/v1/<int:key>')
 def entry(key):
-    return handleHttp(request, key)
+    try:
+        return handleHttp(request, key)
+    except Exception as e:
+        logging.exception(e)
+        if STACKDRIVER_ERROR_REPORTING:
+            try:
+                client = google.cloud.error_reporting.Client()
+                client.report_exception(
+                    http_context=google.cloud.error_reporting.build_flask_context(request))
+            except Exception:
+                logging.exception("Failed to send error report to Google")
+        raise
 
 
 if __name__ == "__main__":

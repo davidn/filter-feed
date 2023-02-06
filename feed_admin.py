@@ -9,7 +9,7 @@ from absl import app, flags
 from validators import url
 from jqqb_evaluator.evaluator import Evaluator
 
-from filter_feed import FilterFeed
+from model import FilterFeed
 
 flags.DEFINE_integer("id", None, "ID for previous feed")
 flags.DEFINE_string("url", None, "Upstream feed")

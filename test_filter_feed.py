@@ -3,8 +3,8 @@ import os
 import unittest
 import xml.etree.ElementTree as ET
 
-from main import detectRss, detectAtom, modifyRss, modifyAtom
-from filter_feed import FilterFeed
+from filter_feed import detectRss, detectAtom, modifyRss, modifyAtom
+from model import FilterFeed
 
 TESTDATA = os.path.join(os.path.dirname(__file__),  'testdata/')
 
