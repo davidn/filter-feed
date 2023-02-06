@@ -10,18 +10,19 @@ from opentelemetry.exporter.cloud_trace import CloudTraceSpanExporter
 from opentelemetry.instrumentation.flask import FlaskInstrumentor
 from opentelemetry.propagate import set_global_textmap
 from opentelemetry.propagators.cloud_trace_propagator import CloudTraceFormatPropagator
-
-from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.resources import Resource,  get_aggregated_resources
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor,  BatchSpanProcessor,  ConsoleSpanExporter
 from opentelemetry.instrumentation.grpc import GrpcInstrumentorClient
 from opentelemetry.instrumentation.requests import RequestsInstrumentor
+from opentelemetry.resourcedetector.gcp_resource_detector import GoogleCloudResourceDetector
 
 TRACE_EXPORTER = os.environ.get("TRACE_EXPORTER", "").lower()
 TRACE_PROPAGATE = os.environ.get("TRACE_PROPAGATE", "").lower()
 
 
 resource = Resource.create({"service.name": "filter-feed"})
+resource.merge(get_aggregated_resources([GoogleCloudResourceDetector()]))
 tracer_provider = TracerProvider(resource=resource)
 
 if TRACE_EXPORTER != "stackdriver":

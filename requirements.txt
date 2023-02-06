@@ -8,6 +8,7 @@ jqqb-evaluator==0.0.1
 requests==2.28.2
 opentelemetry-exporter-gcp-trace==1.4.0
 opentelemetry-exporter-gcp-monitoring==1.4.0a0
+opentelemetry-resourcedetector-gcp==1.4.0a0
 opentelemetry-propagator-gcp==1.4.0
 opentelemetry-api==1.15.0
 opentelemetry-sdk==1.15.0
