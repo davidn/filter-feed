@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Filter list{% endblock %}
+
+{%block content %}
+  <h1>Filters</h1>
+    <table class="table">
+        <tr><th>Name</th><th>Source URL</th><th>Filtered URL</th><th></th></tr>
+        {% for filter in filters %}
+            <tr>
+              <td>{{filter.name}}</td>
+              <td>{{filter.url}}</td>
+              <td><a href="{{url_for('entry', key=filter.key.id())}}">https://filter-feed.newg.as{{url_for('entry', key=filter.key.id())}}</a></td>
+              <td><a class="btn btn-outline-primary" href="{{url_for('get_feed', key=filter.key.id())}}">Edit</td>
+            </tr>
+        {% endfor %}
+    </table>
+    <a class="btn btn-primary" href="{{url_for('create_feed')}}">Add feed</a>
+{% endblock %}

@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block head %}
+  {{ super() }}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/jQuery-QueryBuilder/dist/css/query-builder.default.min.css" />
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/jQuery-QueryBuilder/dist/js/query-builder.standalone.min.js" ></script>
+{% endblock %}
+
+{% block title %}{% if new %}Create Filter{% else %}Update Filter "{{filter.name}}"{% endif %}{% endblock %}
+
+{% block content %}
+<form id="filter_form" class="card p-4 needsvalidation" action="" method="POST" novalidate>
+    <div class="card-title">
+    {% if new %}Create Filter{% else %}Update Filter "{{filter.name}}"{% endif %}
+    </div>
+    <div class="card-body">
+        <div id="validation_elements">
+            <div class="mb-3">
+                <label for="url"  class="form-label">Nickname</input>
+                <input type="text" value="{{filter.name if filter.name}}" id="name" name="name"  class="form-control" required/>
+                <div class="invalid-feedback">Please provide a name for this filter.</div>
+            </div>
+            <div class="mb-3">
+                <label for="url"  class="form-label">Source URL</input>
+                <input type="url" value="{{filter.url if filter.url}}" id="url" name="url"  class="form-control" required/>
+                <div class="invalid-feedback">Please provide the feed URL that should be filtered.</div>
+            </div>
+        </div>
+        <div class="mb-3">
+            <label for="url"  class="form-label">Filter</input>
+            <p class="form-text">Matching entries are deleted.</p>
+            <input type="hidden" value="{{filter.query_builder|tojson|forceescape if filter.query_builder}}" id="query_builder" name="query_builder">
+            <div id="builder" class="form-control"></div>
+        </div>
+        <button class="btn btn-primary" type="submit">Submit</button>
+        {% if not new %}<button id="delete-button" class="btn btn-outline-danger" type="button">Delete</button>{% endif %}
+    </div>
+</form>
+
+<script>
+    let form = $("#filter_form")[0];
+    form.addEventListener('submit', event => {
+      if (form.checkValidity() && $("#builder").queryBuilder('validate')) {
+        $('#query_builder')[0].value = JSON.stringify($("#builder").queryBuilder('getRules'));
+      } else {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      $("#validation_elements")[0].classList.add('was-validated');
+    }, false);
+
+  let qb = $('#builder').queryBuilder({
+    allow_empty: true,
+    filters: [
+       {
+         "id": "title",
+         "type": "string"
+       },
+       {
+         "id": "date",
+         "type": "datetime"
+       },
+       {
+         "id": "description",
+         "type": "string"
+       }
+    ]});
+    {% if not new %}
+    $('#builder').queryBuilder('setRules', JSON.parse($('#query_builder')[0].value));
+    $('#delete-button').click(event => {
+      form.action = "{{ url_for('delete_feed', key=filter.key.id()) }}";
+      form.submit();
+    });
+    {% endif %}
+</script>
+{% endblock %}

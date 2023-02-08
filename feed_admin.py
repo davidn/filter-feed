@@ -9,7 +9,7 @@ from absl import app, flags
 from validators import url
 from jqqb_evaluator.evaluator import Evaluator
 
-from model import FilterFeed
+from model import FilterFeed,  validate_jqqb
 
 flags.DEFINE_integer("id", None, "ID for previous feed")
 flags.DEFINE_string("url", None, "Upstream feed")
@@ -26,12 +26,7 @@ def _CheckUrl(value) -> bool:
 def _CheckQuery(value):
     if value is None:
         return True
-    e = Evaluator(value)
-    try:
-        e.object_matches_rules({"title": "blah", "pubdate": datetime.min, "description": "desc"})
-    except:
-        return False
-    return True
+    return validate_jqqb(value)
 
 @flags.multi_flags_validator(["id", "url", "query_builder"],
         "Require both --url and --query_builder to create a new feed.")

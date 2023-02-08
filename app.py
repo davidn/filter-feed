@@ -5,6 +5,7 @@ from typing import Any
 import json
 import logging as py_logging
 from datetime import datetime, timezone
+from functools import wraps
 
 from flask import Flask, request
 from absl import logging
@@ -23,7 +24,8 @@ from opentelemetry.instrumentation.grpc import GrpcInstrumentorClient
 from opentelemetry.instrumentation.requests import RequestsInstrumentor
 from opentelemetry.resourcedetector.gcp_resource_detector import GoogleCloudResourceDetector
 
-from filter_feed import handleHttp
+import filter_feed
+import view
 
 TRACE_EXPORTER = os.environ.get("TRACE_EXPORTER", "").lower()
 TRACE_PROPAGATE = os.environ.get("TRACE_PROPAGATE", "").lower()
@@ -96,21 +98,55 @@ if "LOG_LEVEL" in os.environ:
 app = Flask(__name__)
 FlaskInstrumentor().instrument_app(app)
 
-@app.route('/v1/<int:key>')
-def entry(key):
-    try:
-        return handleHttp(request, key)
-    except Exception as e:
-        logging.exception(e)
-        if STACKDRIVER_ERROR_REPORTING:
-            try:
-                client = google.cloud.error_reporting.Client()
-                client.report_exception(
-                    http_context=google.cloud.error_reporting.build_flask_context(request))
-            except Exception:
-                logging.exception("Failed to send error report to Google")
-        raise
+def error_reporting(f):
+    @wraps(f)
+    def wrapped(request,  *args,  **kwargs):
+        try:
+            f(request,  *args,  **kwargs)
+        except Exception as e:
+            logging.exception(e)
+            if STACKDRIVER_ERROR_REPORTING:
+                try:
+                    client = google.cloud.error_reporting.Client()
+                    client.report_exception(
+                        http_context=google.cloud.error_reporting.build_flask_context(request))
+                except Exception:
+                    logging.exception("Failed to send error report to Google")
+    return wrapped
 
+@app.route('/v1/<int:key>.rss')
+@app.route('/v1/<int:key>.atom')
+@app.route('/v1/<int:key>.xml')
+@app.route('/v1/<int:key>')
+@error_reporting
+def entry(key):
+        return filter_feed.handleHttp(request, key)
+
+@app.route('/v1')
+@app.route('/v1/')
+@app.route('/')
+def  list_feeds():
+    return view.list_feeds(request)
+
+@app.get('/v1/<int:key>/edit')
+def  get_feed(key):
+    return view.get_feed(request,  key)
+
+@app.post('/v1/<int:key>/edit')
+def  update_feed(key):
+    return view.update_feed(request,  key)
+
+@app.post('/v1/<int:key>/delete')
+def  delete_feed(key):
+    return view.delete_feed(request,  key)
+
+@app.get('/v1/create')
+def  create_feed_form():
+    return view.create_feed_form(request)
+
+@app.post('/v1/create')
+def  create_feed():
+    return view.create_feed(request)
 
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
