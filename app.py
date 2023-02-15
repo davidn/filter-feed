@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from functools import wraps
 
 from flask import Flask, request
+import werkzeug.exceptions
 from absl import logging
 import google.cloud.error_reporting
 import google.cloud.logging
@@ -99,19 +100,22 @@ app = Flask(__name__)
 FlaskInstrumentor().instrument_app(app)
 
 def error_reporting(f):
+    client = google.cloud.error_reporting.Client(project=PROJECT_ID)
     @wraps(f)
-    def wrapped(request,  *args,  **kwargs):
+    def wrapped(*args,  **kwargs):
         try:
-            f(request,  *args,  **kwargs)
+            return f(*args,  **kwargs)
+        except werkzeug.exceptions.NotFound as e:
+            raise
         except Exception as e:
             logging.exception(e)
             if STACKDRIVER_ERROR_REPORTING:
                 try:
-                    client = google.cloud.error_reporting.Client()
                     client.report_exception(
                         http_context=google.cloud.error_reporting.build_flask_context(request))
                 except Exception:
                     logging.exception("Failed to send error report to Google")
+            raise
     return wrapped
 
 @app.route('/v1/<int:key>.rss')
@@ -125,26 +129,32 @@ def entry(key):
 @app.route('/v1')
 @app.route('/v1/')
 @app.route('/')
+@error_reporting
 def  list_feeds():
     return view.list_feeds(request)
 
 @app.get('/v1/<int:key>/edit')
+@error_reporting
 def  get_feed(key):
     return view.get_feed(request,  key)
 
 @app.post('/v1/<int:key>/edit')
+@error_reporting
 def  update_feed(key):
     return view.update_feed(request,  key)
 
 @app.post('/v1/<int:key>/delete')
+@error_reporting
 def  delete_feed(key):
     return view.delete_feed(request,  key)
 
 @app.get('/v1/create')
+@error_reporting
 def  create_feed_form():
     return view.create_feed_form(request)
 
 @app.post('/v1/create')
+@error_reporting
 def  create_feed():
     return view.create_feed(request)
 
