@@ -73,7 +73,7 @@ class ModifyRssTest(unittest.TestCase):
       ff = FilterFeed(query_builder={
           "condition": "AND",
           "rules": [{
-              "id": "X",
+              "id": "title",
               "field": "title",
               "type": "string",
               "input": "text",
@@ -91,7 +91,7 @@ class ModifyRssTest(unittest.TestCase):
       ff = FilterFeed(query_builder={
           "condition": "AND",
           "rules": [{
-              "id": "X",
+              "id": "title",
               "field": "title",
               "type": "string",
               "input": "text",
@@ -109,7 +109,7 @@ class ModifyRssTest(unittest.TestCase):
       ff = FilterFeed(query_builder={
           "condition": "AND",
           "rules": [{
-              "id": "X",
+              "id": "title",
               "field": "title",
               "type": "string",
               "input": "text",
@@ -135,7 +135,7 @@ class ModifyAtomTest(unittest.TestCase):
       ff = FilterFeed(query_builder={
           "condition": "AND",
           "rules": [{
-              "id": "X",
+              "id": "title",
               "field": "title",
               "type": "string",
               "input": "text",
@@ -153,7 +153,7 @@ class ModifyAtomTest(unittest.TestCase):
       ff = FilterFeed(query_builder={
           "condition": "AND",
           "rules": [{
-              "id": "X",
+              "id": "title",
               "field": "title",
               "type": "string",
               "input": "text",

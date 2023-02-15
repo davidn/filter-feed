@@ -13,7 +13,7 @@ import ndb_mocks
 
 URL = "http://www.example.com/b"
 NAME = "some nickname"
-QB = '{"condition":"or","rules":[{"type":"string","input":"text","id":"selects","field":"title","operator":"not_contains","value":"CVO"}]}'
+QB = '{"condition":"OR","rules":[{"type":"string","input":"text","id":"title","field":"title","operator":"not_contains","value":"CVO"}]}'
 
 
 class TestUpsertFeed(unittest.TestCase):

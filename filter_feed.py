@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 
 
-from dataclasses import dataclass, asdict
-from email.utils import parsedate_to_datetime
-from datetime import datetime
-from typing import Optional, Callable, TypeVar,  Any
+from dataclasses import asdict
+from typing import Any
 import xml.etree.ElementTree as ET
 
 from absl import logging
@@ -15,6 +13,7 @@ from opentelemetry import  trace
 from jqqb_evaluator.evaluator import Evaluator
 
 import model
+from item import Item
 
 tracer = trace.get_tracer(__name__)
 
@@ -25,34 +24,6 @@ class NamespaceRecordingTreeBuilder(ET.TreeBuilder):
     
     def start_ns(self,  prefix,  uri):
         self.ns[prefix] = uri
-
-@dataclass
-class Item:
-    title: Optional[str]
-    date: Optional[datetime]
-    description: Optional[str]
-    T = TypeVar('T')
-
-    @classmethod
-    def _content(cls, item: ET.Element, tag: str, c: Callable[[str], T]=str) -> Optional[T]:
-        el = item.find(tag)
-        return None if el is None else c(el.text)
-
-    @classmethod
-    def fromRssItem(cls, item: ET.Element) -> 'Item':
-        return Item(
-                title=cls._content(item, "title"),
-                date=cls._content(item, "pubDate", parsedate_to_datetime),
-                description=cls._content(item, "description")
-                )
-
-    @classmethod
-    def fromAtomEntry(cls, item: ET.Element) -> 'Item':
-        return Item(
-                title=cls._content(item, "{http://www.w3.org/2005/Atom}title"),
-                date=cls._content(item, "{http://www.w3.org/2005/Atom}updated", datetime.fromisoformat),
-                description=cls._content(item, "{http://www.w3.org/2005/Atom}summary")
-                )
 
 
 def modifyRss(root: ET.Element, settings: model.FilterFeed):
