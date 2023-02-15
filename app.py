@@ -30,10 +30,14 @@ import view
 
 TRACE_EXPORTER = os.environ.get("TRACE_EXPORTER", "").lower()
 TRACE_PROPAGATE = os.environ.get("TRACE_PROPAGATE", "").lower()
+STACKDRIVER_ERROR_REPORTING = os.environ.get("STACKDRIVER_ERROR_REPORTING", "").lower() in (1, 'true', 't')
+LOG_HANDLER = os.environ.get("LOG_HANDLER", "").lower()
+PROJECT_ID = os.environ.get("PROJECT_ID", "filter-feed")
 
-
-resource = Resource.create({"service.name": "filter-feed"})
-resource.merge(get_aggregated_resources([GoogleCloudResourceDetector()]))
+resource = Resource.create({"service.name": PROJECT_ID})
+if TRACE_EXPORTER:
+    # slow, don't bother if we're not using it
+    resource.merge(get_aggregated_resources([GoogleCloudResourceDetector()]))
 tracer_provider = TracerProvider(resource=resource)
 
 if TRACE_EXPORTER != "stackdriver":
@@ -52,10 +56,6 @@ elif TRACE_EXPORTER == "stdout":
     tracer_provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))
 
 trace.set_tracer_provider(tracer_provider)
-
-STACKDRIVER_ERROR_REPORTING = os.environ.get("STACKDRIVER_ERROR_REPORTING", "").lower() in (1, 'true', 't')
-LOG_HANDLER = os.environ.get("LOG_HANDLER", "").lower()
-PROJECT_ID = os.environ.get("PROJECT_ID", "")
 
 if LOG_HANDLER == 'absl':
     logging.use_absl_handler()
