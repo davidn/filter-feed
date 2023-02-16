@@ -2,15 +2,21 @@ steps:
 - name: 'python:3.9'
   args: ['pip3','install', '-r', 'requirements.txt', '-r', 'requirements-test.txt', '--user']
 - name: 'python:3.9'
+  id: sourceReady
   script: |
     #!/usr/bin/env bash
     patch -p1 -d $(pip show Flask | grep '^Location: ' | sed -e 's/Location: //') < cloud_ndb.patch 
 - name: 'python:3.9'
   args: ['python3','-m', 'unittest']
+  waitFor: [sourceReady]
 - name: 'python:3.9'
   args: ['./pytype_script.sh']
+  waitFor: [sourceReady]
+ 
 - name: 'gcr.io/cloud-builders/docker'
   args: ['build', '-t', 'gcr.io/$PROJECT_ID/filter-feed:$COMMIT_SHA', '.']
+  waitFor: [-]
+  
 - name: 'gcr.io/cloud-builders/docker'
   args: ['push', 'gcr.io/$PROJECT_ID/filter-feed:$COMMIT_SHA']
 - name: 'gcr.io/cloud-builders/gcloud'
