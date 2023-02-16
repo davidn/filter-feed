@@ -11,5 +11,6 @@ COPY cloud_ndb.patch ./
 RUN patch -p1 -d $(pip show Flask | grep '^Location: ' | sed -e 's/Location: //') < cloud_ndb.patch 
 
 COPY *.py ./
+COPY templates ./templates/
 
 CMD exec python3 -m gunicorn.app.wsgiapp --bind :$PORT --workers 6 --threads 1 app:app
