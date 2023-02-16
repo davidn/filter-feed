@@ -2,6 +2,10 @@ steps:
 - name: 'python:3.9'
   args: ['pip3','install', '-r', 'requirements.txt', '-r', 'requirements-test.txt', '--user']
 - name: 'python:3.9'
+  script: |
+    #!/usr/bin/env bash
+    patch -p1 -d $(pip show Flask | grep '^Location: ' | sed -e 's/Location: //') < cloud_ndb.patch 
+- name: 'python:3.9'
   args: ['python3','-m', 'unittest']
 - name: 'python:3.9'
   args: ['./pytype_script.sh']

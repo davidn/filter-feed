@@ -1,0 +1,29 @@
+Author: David Newgas <david@newgas.net>
+Date:   Tue Feb 7 18:56:52 2023 -0800
+
+    Use public load_credentials_from_file API
+    
+    Since https://github.com/googleapis/google-auth-library-python/commit/15d5fa946177581b52a5a9eb3ca285c088f5c45d `_load_credentials_from_file` has been made into a public method.
+
+diff --git a/flask_cloud_ndb/__init__.py b/flask_cloud_ndb/__init__.py
+index fb98260..8235670 100644
+--- a/flask_cloud_ndb/__init__.py
++++ b/flask_cloud_ndb/__init__.py
+@@ -7,7 +7,7 @@ Adds Google Cloud NDB support to Flask
+ 
+ import os
+ 
+-from google.auth._default import _load_credentials_from_file
++from google.auth import load_credentials_from_file
+ from google.cloud import ndb
+ 
+ 
+@@ -63,7 +63,7 @@ class CloudNDB(object):
+             credentials_file = app.config["NDB_GOOGLE_APPLICATION_CREDENTIALS"]
+             if credentials_file:
+                 # call google auth helper to initialise credentials
+-                credentials, project_id = _load_credentials_from_file(
++                credentials, project_id = load_credentials_from_file(
+                     credentials_file)
+             else:
+                 # default credentials, OR load from env, through underlying
