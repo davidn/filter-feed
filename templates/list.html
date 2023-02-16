@@ -9,7 +9,7 @@
             <tr>
               <td>{{filter.name}}</td>
               <td>{{filter.url}}</td>
-              <td><a href="{{url_for('entry', key=filter.key.id())}}">https://filter-feed.newg.as{{url_for('entry', key=filter.key.id())}}</a></td>
+              <td><a href="{{url_for('feed_by_urlsafe', key=filter.key.urlsafe())}}">https://filter-feed.newg.as{{url_for('feed_by_urlsafe', key=filter.key.urlsafe())}}</a></td>
               <td><a class="btn btn-outline-primary" href="{{url_for('get_feed', key=filter.key.id())}}">Edit</td>
             </tr>
         {% endfor %}

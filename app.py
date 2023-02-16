@@ -8,6 +8,8 @@ from datetime import datetime, timezone
 from functools import wraps
 
 from flask import Flask, request
+from flask_security import Security, login_required
+from flask_cloud_ndb import CloudNDB
 import werkzeug.exceptions
 from absl import logging
 import google.cloud.error_reporting
@@ -27,12 +29,16 @@ from opentelemetry.resourcedetector.gcp_resource_detector import GoogleCloudReso
 
 import filter_feed
 import view
+import model
+import ndb_user_datastore
 
 TRACE_EXPORTER = os.environ.get("TRACE_EXPORTER", "").lower()
 TRACE_PROPAGATE = os.environ.get("TRACE_PROPAGATE", "").lower()
 STACKDRIVER_ERROR_REPORTING = os.environ.get("STACKDRIVER_ERROR_REPORTING", "").lower() in (1, 'true', 't')
 LOG_HANDLER = os.environ.get("LOG_HANDLER", "").lower()
 PROJECT_ID = os.environ.get("PROJECT_ID", "filter-feed")
+SECRET_KEY = os.environ.get('SECRET_KEY', "secret key only for DEBUG")
+SECURITY_PASSWORD_SALT = os.environ.get("SECURITY_PASSWORD_SALT", '257726044742079860569628914655245968662')
 
 resource = Resource.create({"service.name": PROJECT_ID})
 if TRACE_EXPORTER:
@@ -97,6 +103,15 @@ if "LOG_LEVEL" in os.environ:
 
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = SECRET_KEY
+#only for debug!
+app.config['SECURITY_PASSWORD_SALT'] = SECURITY_PASSWORD_SALT
+app.config["NDB_PROJECT"] = PROJECT_ID
+
+cloud_ndb = CloudNDB(app)
+user_datastore = ndb_user_datastore.NdbUserDatastore(model.User, model.Role)
+security = Security(app, user_datastore)
+
 FlaskInstrumentor().instrument_app(app)
 
 def error_reporting(f):
@@ -123,40 +138,54 @@ def error_reporting(f):
 @app.route('/v1/<int:key>.xml')
 @app.route('/v1/<int:key>')
 @error_reporting
-def entry(key):
-        return filter_feed.handleHttp(request, key)
+def feed_by_id(key):
+    return filter_feed.feed_by_id(request, key)
+
+@app.route('/v1/<string:key>.rss')
+@app.route('/v1/<string:key>.atom')
+@app.route('/v1/<string:key>.xml')
+@app.route('/v1/<string:key>')
+@error_reporting
+def feed_by_urlsafe(key):
+    return filter_feed.feed_by_urlsafe(request, key)
 
 @app.route('/v1')
 @app.route('/v1/')
 @app.route('/')
+@login_required
 @error_reporting
 def  list_feeds():
     return view.list_feeds(request)
 
 @app.get('/v1/<int:key>/edit')
+@login_required
 @error_reporting
 def  get_feed(key):
     return view.get_feed(request,  key)
 
 @app.post('/v1/<int:key>/edit')
+@login_required
 @error_reporting
 def  update_feed(key):
     return view.update_feed(request,  key)
 
 @app.post('/v1/<int:key>/delete')
+@login_required
 @error_reporting
 def  delete_feed(key):
     return view.delete_feed(request,  key)
 
 @app.get('/v1/create')
+@login_required
 @error_reporting
 def  create_feed_form():
     return view.create_feed_form(request)
 
 @app.post('/v1/create')
+@login_required
 @error_reporting
 def  create_feed():
     return view.create_feed(request)
 
 if __name__ == "__main__":
-    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8080)))

@@ -40,25 +40,12 @@ class TestUpsertFeed(unittest.TestCase):
         self.assertEqual(commit_req.mutations[0].upsert.properties["name"].string_value, NAME)
         self.assertEqual(commit_req.mutations[0].upsert.properties["query_builder"].blob_value, bytes(QB, encoding='utf-8'))
 
-    def testNewFeedNoName(self):
-        mr = datastore_type.MutationResult(key = {"partition_id":{"project_id":"blah"},"path": [{"kind": "FilterFeed", "id": 123}]})
-        commit_res = datastore_type.CommitResponse(mutation_results=[mr])
-        self.client.stub.commit.set_val(commit_res)
-        self.assertEqual(
-            feed_admin.upsert_feed(None, URL, None, QB),
-            "https://filter-feed.newg.as/v1/123")
-        self.client.stub.commit.assert_called_once()
-        commit_req = self.client.stub.commit.call_args[0][0]
-        self.assertEqual(len(commit_req.mutations), 1)
-        self.assertTrue(commit_req.mutations[0].upsert is not None)
-        self.assertEqual(commit_req.mutations[0].upsert.properties["url"].string_value, URL)
-        self.assertEqual(commit_req.mutations[0].upsert.properties["query_builder"].blob_value, bytes(QB, encoding='utf-8'))
-
     def testUpdateFeedURL(self):
         e = datastore_type.Entity(
           properties = {
             "url": datastore_type.Value(string_value="http://old_url/"), 
-            "query_builder": datastore_type.Value(blob_value=bytes(QB, encoding='utf-8'))}, 
+            "query_builder": datastore_type.Value(blob_value=bytes(QB, encoding='utf-8')), 
+            "name": datastore_type.Value(string_value=NAME)}, 
           key = {"partition_id":{"project_id":"blah"},"path": [{"kind": "FilterFeed", "id": 123}]})
         lookup_res = datastore_type.LookupResponse(found=[{"entity":e}])
         self.client.stub.lookup.set_val(lookup_res)

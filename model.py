@@ -6,6 +6,7 @@ import dataclasses
 from google.cloud import ndb  # type: Any
 from validators import url
 from jqqb_evaluator.evaluator import Evaluator
+from flask_security import UserMixin, RoleMixin
 
 from item import Item
 
@@ -55,3 +56,34 @@ class FilterFeed(ndb.Model):
     name = ndb.StringProperty(required=True)
     query_builder = ndb.JsonProperty(required=True, validator=_validate_jqqb)
 
+
+class Role(ndb.Model,  RoleMixin):
+    name = ndb.StringProperty(required=True)
+    description = ndb.StringProperty()
+    
+    @property
+    def id(self):
+        return self.key.id() if self.key else None
+
+
+class User(ndb.Model,  UserMixin):
+    email = ndb.StringProperty()
+    password = ndb.StringProperty()
+    active = ndb.BooleanProperty()
+    confirmed_at = ndb.DateTimeProperty()
+    role_keys = ndb.KeyProperty(kind=Role,  repeated=True)
+    
+    def __init__(self, *args, **kwargs):
+        self._roles = None
+        super().__init__(*args, **kwargs)
+    
+    @property
+    def id(self):
+        return self.key.id() if self.key else None
+    
+    @property
+    def roles(self):
+        if self._roles is None:
+            self._roles = [r for r in ndb.get_multi(self.role_keys) if r]
+        return self._roles
+        

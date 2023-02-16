@@ -32,6 +32,9 @@ def MockUnaryUnaryCallable():
         def set_val(val):
             unun.return_value = val
         unun.set_val = set_val
+        def set_side_effect(side_effect):
+            unun.side_effect = side_effect
+        unun.set_side_effect = set_side_effect
         return unun
 
 def MockDatastoreStub():

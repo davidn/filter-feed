@@ -73,11 +73,9 @@ def detectAtom(content_type: str, root: ET.Element) -> bool:
     return root.tag in ("feed", "{http://www.w3.org/2005/Atom}feed")
 
 
-def handleHttp(request: flask.Request, key: int) -> flask.Response:
+def feed_by_key(request: flask.Request, key: ndb.Key) -> flask.Response:
     res = flask.Response()
-    client = ndb.Client()
-    with client.context():
-        settings = model.FilterFeed.get_by_id(key)
+    settings = key.get()
     if settings is None:
         flask.abort(404)
     upstream = requests.get(settings.url)
@@ -101,3 +99,11 @@ def handleHttp(request: flask.Request, key: int) -> flask.Response:
         # pytype: enable=module-attr
         res.content_type = upstream.headers.get('Content-Type', None)
     return res
+
+
+
+def feed_by_id(request: flask.Request, id: int) -> flask.Response:
+    return feed_by_key(request, ndb.Key(model.FilterFeed, id))
+
+def feed_by_urlsafe(request: flask.Request, urlsafe: str) -> flask.Response:
+    return feed_by_key(request, ndb.Key(urlsafe=urlsafe))
