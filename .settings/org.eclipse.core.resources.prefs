@@ -1,5 +1,7 @@
 eclipse.preferences.version=1
 encoding//.settings/org.python.pydev.yaml=UTF-8
+encoding//venv/lib/python3.9/site-packages/flask_principal.py=utf-8
+encoding//venv/lib/python3.9/site-packages/flask_security/core.py=utf-8
 encoding//venv/lib/python3.9/site-packages/flask_security/datastore.py=utf-8
 encoding//venv/lib/python3.9/site-packages/flask_security/utils.py=utf-8
 encoding//venv/lib/python3.9/site-packages/google/cloud/datastore_v1/services/datastore/transports/grpc.py=utf-8

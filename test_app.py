@@ -5,11 +5,14 @@ import unittest
 from unittest import mock
 from xml.etree import ElementTree as ET
 
+import werkzeug
 import requests_mock
 from google.cloud.datastore_v1 import types as datastore_type
+from google.cloud import ndb
 
 import ndb_mocks
-from app import app, cloud_ndb
+from app import app, cloud_ndb, valid_key_or_abort
+from decorator import contextmanager
 
 app.testing = True
 
@@ -85,3 +88,46 @@ class TestApp(unittest.TestCase):
         r = self.client.get('/v1/agRibGFochwLEgRVc2VyGLUHDAsSCkZpbHRlckZlZWQYwQIM')
         
         self.assertEqual(r.status_code,  404)
+
+
+class TestKeyValidation(unittest.TestCase):
+    def setUp(self):
+        # needed because Key relies on a context
+        ctxmgr = ndb_mocks.MockNdbClient()().context()
+        self.context = ctxmgr.__enter__()
+        self.addCleanup(ctxmgr.__exit__, None, None, None)  # TODO: Use enterContext when 3.11 is standard
+        
+    @contextmanager
+    def assertNotRaises(self, exception, msg=None):
+        try:
+            yield
+        except exception as e:
+            self.fail(e)
+            
+    
+    def test_non_filter(self):
+        key = ndb.Key("foo", 123)
+        with self.assertRaises(werkzeug.exceptions.NotFound):
+            valid_key_or_abort(key)
+        key = ndb.Key("User", 321, "bar", 123)
+        with self.assertRaises(werkzeug.exceptions.NotFound):
+            valid_key_or_abort(key)
+    
+    def test_too_long_path(self):
+        key = ndb.Key("User", 321, "bar", 123, "FilterFeed", 654)
+        with self.assertRaises(werkzeug.exceptions.NotFound):
+            valid_key_or_abort(key)
+    
+    def test_root_non_user(self):
+        key = ndb.Key("bar", 123, "FilterFeed", 654)
+        with self.assertRaises(werkzeug.exceptions.NotFound):
+            valid_key_or_abort(key)
+    
+    def test_valid(self):
+        key = ndb.Key("FilterFeed", 654)
+        with self.assertNotRaises(werkzeug.exceptions.NotFound):
+            valid_key_or_abort(key)
+        key = ndb.Key("User", 123, "FilterFeed", 654)        
+        with self.assertNotRaises(werkzeug.exceptions.NotFound):
+            valid_key_or_abort(key)
+    

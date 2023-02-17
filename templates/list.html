@@ -4,13 +4,24 @@
 {%block content %}
   <h1>Filters</h1>
     <table class="table">
-        <tr><th>Name</th><th>Source URL</th><th>Filtered URL</th><th></th></tr>
+        <tr>
+	        {% if show_user_id %}
+	        <td>User ID</td>
+	        {% endif %}
+        	<th>Name</th>
+        	<th>Source URL</th>
+        	<th>Filtered URL</th>
+        	<th></th>
+    	</tr>
         {% for filter in filters %}
             <tr>
+              {% if show_user_id %}
+              <td>{{filter.key.root().id() if filter.key.root().kind() == "User" else ""}}</td>
+              {% endif %}
               <td>{{filter.name}}</td>
               <td>{{filter.url}}</td>
-              <td><a href="{{url_for('feed_by_urlsafe', key=filter.key.urlsafe())}}">https://filter-feed.newg.as{{url_for('feed_by_urlsafe', key=filter.key.urlsafe())}}</a></td>
-              <td><a class="btn btn-outline-primary" href="{{url_for('get_feed', key=filter.key.id())}}">Edit</td>
+              <td><a href="{{url_for('feed_by_urlsafe', urlsafe=filter.key.urlsafe())}}">https://filter-feed.newg.as{{url_for('feed_by_urlsafe', urlsafe=filter.key.urlsafe())}}</a></td>
+              <td><a class="btn btn-outline-primary" href="{{url_for('get_feed', urlsafe=filter.key.urlsafe())}}">Edit</td>
             </tr>
         {% endfor %}
     </table>

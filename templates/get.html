@@ -67,7 +67,7 @@
     {% if not new %}
     $('#builder').queryBuilder('setRules', JSON.parse($('#query_builder')[0].value));
     $('#delete-button').click(event => {
-      form.action = "{{ url_for('delete_feed', key=filter.key.id()) }}";
+      form.action = "{{ url_for('delete_feed', urlsafe=filter.key.urlsafe()) }}";
       form.submit();
     });
     {% endif %}

@@ -100,10 +100,3 @@ def feed_by_key(request: flask.Request, key: ndb.Key) -> flask.Response:
         res.content_type = upstream.headers.get('Content-Type', None)
     return res
 
-
-
-def feed_by_id(request: flask.Request, id: int) -> flask.Response:
-    return feed_by_key(request, ndb.Key(model.FilterFeed, id))
-
-def feed_by_urlsafe(request: flask.Request, urlsafe: str) -> flask.Response:
-    return feed_by_key(request, ndb.Key(urlsafe=urlsafe))

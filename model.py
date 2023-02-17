@@ -2,11 +2,13 @@
 from typing import Any
 from datetime import datetime
 import dataclasses
+from functools import partial
 
 from google.cloud import ndb  # type: Any
 from validators import url
 from jqqb_evaluator.evaluator import Evaluator
 from flask_security import UserMixin, RoleMixin
+from flask_principal import Permission, ItemNeed, RoleNeed
 
 from item import Item
 
@@ -87,3 +89,64 @@ class User(ndb.Model,  UserMixin):
             self._roles = [r for r in ndb.get_multi(self.role_keys) if r]
         return self._roles
         
+
+FilterNeed = partial(ItemNeed, type='filter')
+LoadFilterNeed = partial(FilterNeed, method='load')
+ViewFilterNeed = partial(FilterNeed, method='view')
+EditFilterNeed = partial(FilterNeed, method='edit')
+DeleteFilterNeed = partial(FilterNeed, method='delete')
+CreateFilterNeed = partial(FilterNeed, method='create')
+
+FilterAdminRoleNeed = RoleNeed("filter_admin")
+
+class FilterPermission(Permission):
+    Need = None
+    
+    def __init__(self, filter_key: ndb.Key):
+        need = self.Need(value=filter_key.urlsafe())
+        self.filter_key = filter_key
+        super().__init__(need)
+
+    # Typical flask-principal usage has the _identity_ define what needs that
+    # identity meets, and a permission just lists what needs are required.
+    # I don't like this because it requires the identity to up-front
+    # exhaustively list every granular thing the user has access to, which is
+    # both inefficient and more importantly tightly couples identity and
+    # functionality.
+    # Instead I'm overriding how we determine if a permission should be granted.
+    # I still implement needs so we don't depart too-far from flask-principal
+    # norms, but it's not in practice how permissions is granted.
+    def allows(self, identity):
+        # If identity really wants to grant a need, lets still respect that.
+        if super().allows(identity):
+            return True
+        
+        # SU gets to access any feeds. Can't do this with a need as they are
+        # usually "AND" together.
+        if FilterAdminRoleNeed in identity.provides:
+            return True
+        
+        if self.filter_key.root().kind() == "User" and str(self.filter_key.root().id()) == identity.id:
+            return True
+        return False
+
+
+class LoadFilterPermission(FilterPermission):
+    Need = LoadFilterNeed
+    
+    def allows(self, identity):
+        return True
+
+
+class ViewFilterPermission(FilterPermission):
+    Need = ViewFilterNeed
+
+
+class EditFilterPermission(FilterPermission):
+    Need = EditFilterNeed
+
+
+class DeleteFilterPermission(FilterPermission):
+    Need = DeleteFilterNeed
+
+ListAllFiltersPermission = Permission(FilterAdminRoleNeed)

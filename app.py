@@ -15,6 +15,8 @@ from absl import logging
 import google.cloud.error_reporting
 import google.cloud.logging
 import google.cloud.logging.handlers
+from google.cloud import ndb
+
 from opentelemetry import trace
 from opentelemetry.exporter.cloud_trace import CloudTraceSpanExporter
 from opentelemetry.instrumentation.flask import FlaskInstrumentor
@@ -31,6 +33,7 @@ import filter_feed
 import view
 import model
 import ndb_user_datastore
+import flask
 
 TRACE_EXPORTER = os.environ.get("TRACE_EXPORTER", "").lower()
 TRACE_PROPAGATE = os.environ.get("TRACE_PROPAGATE", "").lower()
@@ -133,23 +136,38 @@ def error_reporting(f):
             raise
     return wrapped
 
-@app.route('/v1/<int:key>.rss')
-@app.route('/v1/<int:key>.atom')
-@app.route('/v1/<int:key>.xml')
-@app.route('/v1/<int:key>')
-@error_reporting
-def feed_by_id(key):
-    return filter_feed.feed_by_id(request, key)
 
-@app.route('/v1/<string:key>.rss')
-@app.route('/v1/<string:key>.atom')
-@app.route('/v1/<string:key>.xml')
-@app.route('/v1/<string:key>')
-@error_reporting
-def feed_by_urlsafe(key):
-    return filter_feed.feed_by_urlsafe(request, key)
+def valid_key_or_abort(key: ndb.Key):
+    if key.kind() != "FilterFeed":
+        flask.abort(404)
+    if len(key.pairs()) == 2 and key.root().kind() != "User":
+        flask.abort(404)
+    if len(key.pairs()) > 2:
+        flask.abort(404)
 
-@app.route('/v1')
+
+@app.route('/v1/<int:id>.rss')
+@app.route('/v1/<int:id>.atom')
+@app.route('/v1/<int:id>.xml')
+@app.route('/v1/<int:id>')
+@error_reporting
+def feed_by_id(id):
+    key = ndb.Key(model.FilterFeed, id)
+    valid_key_or_abort(key)  # can't fail but here for consistency 
+    with model.LoadFilterPermission(key).require():
+        return filter_feed.feed_by_key(request, key)
+
+@app.route('/v1/<string:urlsafe>.rss')
+@app.route('/v1/<string:urlsafe>.atom')
+@app.route('/v1/<string:urlsafe>.xml')
+@app.route('/v1/<string:urlsafe>')
+@error_reporting
+def feed_by_urlsafe(urlsafe):
+    key = ndb.Key(urlsafe=urlsafe)
+    valid_key_or_abort(key)
+    with model.LoadFilterPermission(key).require():
+        return filter_feed.feed_by_key(request, key)
+
 @app.route('/v1/')
 @app.route('/')
 @login_required
@@ -157,23 +175,32 @@ def feed_by_urlsafe(key):
 def  list_feeds():
     return view.list_feeds(request)
 
-@app.get('/v1/<int:key>/edit')
+@app.get('/v1/<string:urlsafe>/edit')
 @login_required
 @error_reporting
-def  get_feed(key):
-    return view.get_feed(request,  key)
+def  get_feed(urlsafe):
+    key = ndb.Key(urlsafe=urlsafe)
+    valid_key_or_abort(key)
+    with model.ViewFilterPermission(key).require():
+        return view.get_feed(request,  key)
 
-@app.post('/v1/<int:key>/edit')
+@app.post('/v1/<string:urlsafe>/edit')
 @login_required
 @error_reporting
-def  update_feed(key):
-    return view.update_feed(request,  key)
+def  update_feed(urlsafe):
+    key = ndb.Key(urlsafe=urlsafe)
+    valid_key_or_abort(key)
+    with model.EditFilterPermission(key).require():
+        return view.update_feed(request,  key)
 
-@app.post('/v1/<int:key>/delete')
+@app.post('/v1/<string:urlsafe>/delete')
 @login_required
 @error_reporting
-def  delete_feed(key):
-    return view.delete_feed(request,  key)
+def  delete_feed(urlsafe):
+    key = ndb.Key(urlsafe=urlsafe)
+    valid_key_or_abort(key)
+    with model.DeleteFilterPermission(key).require():
+        return view.delete_feed(request,  key)
 
 @app.get('/v1/create')
 @login_required
