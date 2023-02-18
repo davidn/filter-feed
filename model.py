@@ -74,6 +74,7 @@ class User(ndb.Model,  UserMixin):
     active = ndb.BooleanProperty()
     confirmed_at = ndb.DateTimeProperty()
     role_keys = ndb.KeyProperty(kind=Role,  repeated=True)
+    fs_uniquifier = ndb.StringProperty()
     
     def __init__(self, *args, **kwargs):
         self._roles = None

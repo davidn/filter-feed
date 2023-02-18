@@ -7,6 +7,7 @@ import logging as py_logging
 from datetime import datetime, timezone
 from functools import wraps
 
+import click
 from flask import Flask, request
 from flask_security import Security, login_required
 from flask_cloud_ndb import CloudNDB
@@ -34,6 +35,8 @@ import view
 import model
 import ndb_user_datastore
 import flask
+from flask_security.utils import uia_email_mapper
+from google.cloud.ndb.context import get_toplevel_context
 
 TRACE_EXPORTER = os.environ.get("TRACE_EXPORTER", "").lower()
 TRACE_PROPAGATE = os.environ.get("TRACE_PROPAGATE", "").lower()
@@ -109,11 +112,25 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = SECRET_KEY
 #only for debug!
 app.config['SECURITY_PASSWORD_SALT'] = SECURITY_PASSWORD_SALT
+app.config['SECURITY_USER_IDENTITY_ATTRIBUTES'] = [
+    {"email": {"mapper": uia_email_mapper, "case_insensitive": False}},
+]
 app.config["NDB_PROJECT"] = PROJECT_ID
 
 cloud_ndb = CloudNDB(app)
 user_datastore = ndb_user_datastore.NdbUserDatastore(model.User, model.Role)
-security = Security(app, user_datastore)
+app.security = Security(app, user_datastore)
+
+# hack to add NDB context for flask CLI
+original_invoke = click.Context.invoke
+@wraps(click.Context.invoke)
+def wrapped_invoke(*args, **kwargs):
+    if get_toplevel_context(raise_context_error=False) is None:
+        with cloud_ndb.context():
+            return original_invoke(*args, **kwargs)
+    else:
+        return original_invoke(*args, **kwargs)
+click.Context.invoke = wrapped_invoke
 
 FlaskInstrumentor().instrument_app(app)
 
