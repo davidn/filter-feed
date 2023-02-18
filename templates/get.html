@@ -9,26 +9,31 @@
 
 {% block content %}
 <form id="filter_form" class="card p-4 needsvalidation" action="" method="POST" novalidate>
+	
     <div class="card-title">
     {% if new %}Create Filter{% else %}Update Filter "{{filter.name}}"{% endif %}
     </div>
-    <div class="card-body">
+    <div class="card-body"> 
+		{{ form.csrf_token }}
+		{% if form.csrf_token.errors %}
+		    <div class="warning">You have submitted an invalid CSRF token</div>
+		{% endif %}
         <div id="validation_elements">
             <div class="mb-3">
-                <label for="url"  class="form-label">Nickname</input>
-                <input type="text" value="{{filter.name if filter.name}}" id="name" name="name"  class="form-control" required/>
+	            {{ form.name.label(class="form-label") }}
+	            {{ form.name(class="form-control") }}
                 <div class="invalid-feedback">Please provide a name for this filter.</div>
             </div>
             <div class="mb-3">
-                <label for="url"  class="form-label">Source URL</input>
-                <input type="url" value="{{filter.url if filter.url}}" id="url" name="url"  class="form-control" required/>
+	            {{ form.url.label(class="form-label") }}
+	            {{ form.url(class="form-control") }}
                 <div class="invalid-feedback">Please provide the feed URL that should be filtered.</div>
             </div>
         </div>
         <div class="mb-3">
-            <label for="url"  class="form-label">Filter</input>
+            {{ form.query_builder.label(class="form-label") }}
             <p class="form-text">Matching entries are deleted.</p>
-            <input type="hidden" value="{{filter.query_builder|tojson|forceescape if filter.query_builder}}" id="query_builder" name="query_builder">
+            {{ form.query_builder }}
             <div id="builder" class="form-control"></div>
         </div>
         <button class="btn btn-primary" type="submit">Submit</button>

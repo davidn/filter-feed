@@ -219,13 +219,7 @@ def  delete_feed(urlsafe):
     with model.DeleteFilterPermission(key).require():
         return view.delete_feed(request,  key)
 
-@app.get('/v1/create')
-@login_required
-@error_reporting
-def  create_feed_form():
-    return view.create_feed_form(request)
-
-@app.post('/v1/create')
+@app.route('/v1/create', methods=['GET', 'POST'])
 @login_required
 @error_reporting
 def  create_feed():
