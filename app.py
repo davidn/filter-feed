@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import os
-from typing import Any
+from typing import Any, Union
 import json
 import logging as py_logging
 from datetime import datetime, timezone
@@ -37,6 +37,7 @@ import ndb_user_datastore
 import flask
 from flask_security.utils import uia_email_mapper
 from google.cloud.ndb.context import get_toplevel_context
+from werkzeug.routing.converters import BaseConverter, ValidationError
 
 TRACE_EXPORTER = os.environ.get("TRACE_EXPORTER", "").lower()
 TRACE_PROPAGATE = os.environ.get("TRACE_PROPAGATE", "").lower()
@@ -132,8 +133,6 @@ def wrapped_invoke(*args, **kwargs):
         return original_invoke(*args, **kwargs)
 click.Context.invoke = wrapped_invoke
 
-FlaskInstrumentor().instrument_app(app)
-
 def error_reporting(f):
     client = google.cloud.error_reporting.Client(project=PROJECT_ID)
     @wraps(f)
@@ -153,35 +152,40 @@ def error_reporting(f):
             raise
     return wrapped
 
+# flask testing calls converters outside of wsgi_app, and thus outside of the
+# ndb context, so we can't reliably call ndb.Key. Therefore this converter just
+# outputs the constructor for an ndb key, which is instantiated in the routes.
+KeyConstructor = Union[tuple[str, int], tuple[str, int, str, int]]
+class KeyConverter(BaseConverter):
+    regex = r"\d+(/\d+)?"
+    part_isolating = False
+    def to_python(self, value: str) -> KeyConstructor:
+        ids = value.split("/")
+        try:
+            ids = [int(id) for id in ids]
+        except ValueError:
+            raise ValidationError()
+        if len(ids) == 1:
+            return ("FilterFeed", ids[0])
+        elif len(ids) == 2:
+            return ("User", ids[0], "FilterFeed", ids[1])
+        else:
+            raise ValidationError()
+    def to_url(self, value: Union[ndb.Key, KeyConstructor]) -> str:
+        if isinstance(value, ndb.Key):
+            return "/".join(str(pair[1]) for pair in value.pairs())
+        else:
+            return "/".join(str(x) for x in value[1::2])
+app.url_map.converters['key'] = KeyConverter
 
-def valid_key_or_abort(key: ndb.Key):
-    if key.kind() != "FilterFeed":
-        flask.abort(404)
-    if len(key.pairs()) == 2 and key.root().kind() != "User":
-        flask.abort(404)
-    if len(key.pairs()) > 2:
-        flask.abort(404)
 
-
-@app.route('/v1/<int:id>.rss')
-@app.route('/v1/<int:id>.atom')
-@app.route('/v1/<int:id>.xml')
-@app.route('/v1/<int:id>')
+@app.route('/v1/<key:key>.rss')
+@app.route('/v1/<key:key>.atom')
+@app.route('/v1/<key:key>.xml')
+@app.route('/v1/<key:key>')
 @error_reporting
-def feed_by_id(id):
-    key = ndb.Key(model.FilterFeed, id)
-    valid_key_or_abort(key)  # can't fail but here for consistency 
-    with model.LoadFilterPermission(key).require():
-        return filter_feed.feed_by_key(request, key)
-
-@app.route('/v1/<string:urlsafe>.rss')
-@app.route('/v1/<string:urlsafe>.atom')
-@app.route('/v1/<string:urlsafe>.xml')
-@app.route('/v1/<string:urlsafe>')
-@error_reporting
-def feed_by_urlsafe(urlsafe):
-    key = ndb.Key(urlsafe=urlsafe)
-    valid_key_or_abort(key)
+def feed_by_key(key: KeyConstructor):
+    key = ndb.Key(*key)
     with model.LoadFilterPermission(key).require():
         return filter_feed.feed_by_key(request, key)
 
@@ -192,30 +196,27 @@ def feed_by_urlsafe(urlsafe):
 def  list_feeds():
     return view.list_feeds(request)
 
-@app.get('/v1/<string:urlsafe>/edit')
+@app.get('/v1/<key:key>/edit')
 @login_required
 @error_reporting
-def  get_feed(urlsafe):
-    key = ndb.Key(urlsafe=urlsafe)
-    valid_key_or_abort(key)
+def  get_feed(key: KeyConstructor):
+    key = ndb.Key(*key)
     with model.ViewFilterPermission(key).require():
         return view.get_feed(request,  key)
 
-@app.post('/v1/<string:urlsafe>/edit')
+@app.post('/v1/<key:key>/edit')
 @login_required
 @error_reporting
-def  update_feed(urlsafe):
-    key = ndb.Key(urlsafe=urlsafe)
-    valid_key_or_abort(key)
+def  update_feed(key: KeyConstructor):
+    key = ndb.Key(*key)
     with model.EditFilterPermission(key).require():
         return view.update_feed(request,  key)
 
-@app.post('/v1/<string:urlsafe>/delete')
+@app.post('/v1/<key:key>/delete')
 @login_required
 @error_reporting
-def  delete_feed(urlsafe):
-    key = ndb.Key(urlsafe=urlsafe)
-    valid_key_or_abort(key)
+def  delete_feed(key: KeyConstructor):
+    key = ndb.Key(*key)
     with model.DeleteFilterPermission(key).require():
         return view.delete_feed(request,  key)
 

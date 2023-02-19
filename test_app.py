@@ -6,13 +6,13 @@ from unittest import mock
 from xml.etree import ElementTree as ET
 
 import werkzeug
+from werkzeug.routing import ValidationError, Map
 import requests_mock
 from google.cloud.datastore_v1 import types as datastore_type
 from google.cloud import ndb
 
 import ndb_mocks
-from app import app, cloud_ndb, valid_key_or_abort
-from decorator import contextmanager
+from app import app, cloud_ndb, KeyConverter
 
 app.testing = True
 
@@ -57,20 +57,21 @@ class TestApp(unittest.TestCase):
             "url": datastore_type.Value(string_value="http://example.com/a"), 
             "name": datastore_type.Value(string_value="nickname"),  
             "query_builder": datastore_type.Value(blob_value=b'{"condition":"AND","rules":[{"id":"X","field":"title","type":"string","input":"text","operator":"contains","value":"Boring"}]}')}, 
-          key = {"partition_id":{"project_id":"blah"},"path": [
+          key = {"partition_id":{"project_id":app.config["NDB_PROJECT"]},"path": [
               {"kind": "User", "id": 949},{"kind": "FilterFeed", "id": 123}]})
         lookup_res = datastore_type.LookupResponse(found=[{"entity":e}])
         self.stub.lookup.set_val(lookup_res)
 
-        r = self.client.get('/v1/agRibGFochsLEgRVc2VyGLUHDAsSCkZpbHRlckZlZWQYeww')
-        
+        r = self.client.get('/v1/949/123')
         self.assertEqual(
             ET.canonicalize(r.data),
             ET.canonicalize(from_file=os.path.join(TESTDATA,  "rss-filtered.xml")))
     
     
     def testUnkownLegacy404(self):
-        e = datastore_type.Entity(key = {"partition_id":{"project_id":app.config["NDB_PROJECT"]},"path": [{"kind": "FilterFeed", "id": 321}]})
+        e = datastore_type.Entity(key = {
+            "partition_id":{"project_id":app.config["NDB_PROJECT"]},
+            "path": [{"kind": "FilterFeed", "id": 321}]})
         lookup_res = datastore_type.LookupResponse(missing=[{"entity":e}])
         self.stub.lookup.set_val(lookup_res)
         
@@ -79,55 +80,78 @@ class TestApp(unittest.TestCase):
         self.assertEqual(r.status_code,  404)
     
     
-    def testUnkown404(self):
-        e = datastore_type.Entity(key = {"partition_id":{"project_id":"blah"},"path": [
-            {"kind": "User", "id": 949},{"kind": "FilterFeed", "id": 321}]})
+    def testUnkownUser404(self):
+        e = datastore_type.Entity(key = {
+            "partition_id":{"project_id":app.config["NDB_PROJECT"]},
+            "path": [{"kind": "User", "id": 666},{"kind": "FilterFeed", "id": 321}]})
         lookup_res = datastore_type.LookupResponse(missing=[{"entity":e}])
         self.stub.lookup.set_val(lookup_res)
         
-        r = self.client.get('/v1/agRibGFochwLEgRVc2VyGLUHDAsSCkZpbHRlckZlZWQYwQIM')
+        r = self.client.get('/v1/666/321')
         
         self.assertEqual(r.status_code,  404)
-
-
-class TestKeyValidation(unittest.TestCase):
+    
+    
+    def testUnkownFeed404(self):
+        e = datastore_type.Entity(key = {
+            "partition_id":{"project_id":app.config["NDB_PROJECT"]},
+            "path": [{"kind": "User", "id": 949},{"kind": "FilterFeed", "id": 123}]})
+        lookup_res = datastore_type.LookupResponse(missing=[{"entity":e}])
+        self.stub.lookup.set_val(lookup_res)
+        
+        r = self.client.get('/v1/949/123')
+        
+        self.assertEqual(r.status_code,  404)
+        
+class KeyConverterTest(unittest.TestCase):
     def setUp(self):
+        self.map = Map()
         # needed because Key relies on a context
         ctxmgr = ndb_mocks.MockNdbClient()().context()
         self.context = ctxmgr.__enter__()
         self.addCleanup(ctxmgr.__exit__, None, None, None)  # TODO: Use enterContext when 3.11 is standard
-        
-    @contextmanager
-    def assertNotRaises(self, exception, msg=None):
-        try:
-            yield
-        except exception as e:
-            self.fail(e)
-            
-    
-    def test_non_filter(self):
-        key = ndb.Key("foo", 123)
-        with self.assertRaises(werkzeug.exceptions.NotFound):
-            valid_key_or_abort(key)
-        key = ndb.Key("User", 321, "bar", 123)
-        with self.assertRaises(werkzeug.exceptions.NotFound):
-            valid_key_or_abort(key)
-    
-    def test_too_long_path(self):
-        key = ndb.Key("User", 321, "bar", 123, "FilterFeed", 654)
-        with self.assertRaises(werkzeug.exceptions.NotFound):
-            valid_key_or_abort(key)
-    
-    def test_root_non_user(self):
-        key = ndb.Key("bar", 123, "FilterFeed", 654)
-        with self.assertRaises(werkzeug.exceptions.NotFound):
-            valid_key_or_abort(key)
-    
-    def test_valid(self):
-        key = ndb.Key("FilterFeed", 654)
-        with self.assertNotRaises(werkzeug.exceptions.NotFound):
-            valid_key_or_abort(key)
-        key = ndb.Key("User", 123, "FilterFeed", 654)        
-        with self.assertNotRaises(werkzeug.exceptions.NotFound):
-            valid_key_or_abort(key)
+
+    def test_legacy_id(self):
+        self.assertEqual(
+            KeyConverter(self.map).to_python("123"),
+            ("FilterFeed", 123))
+        self.assertEqual(
+            KeyConverter(self.map).to_url(("FilterFeed", 123)),
+            "123")
+        self.assertEqual(
+            KeyConverter(self.map).to_url(ndb.Key("FilterFeed", 123)),
+            "123")
+
+    def test_pair_id(self):
+        self.assertEqual(
+            KeyConverter(self.map).to_python("949/123"),
+            ("User", 949, "FilterFeed", 123))
+        self.assertEqual(
+            KeyConverter(self.map).to_url(("User", 949, "FilterFeed", 123)),
+            "949/123")
+        self.assertEqual(
+            KeyConverter(self.map).to_url(ndb.Key("User", 949, "FilterFeed", 123)),
+            "949/123")
+
+    def test_reject_triple(self):
+        with self.assertRaises(ValidationError):
+            KeyConverter(self.map).to_python("949/123/653")
+
+    def test_reject_empty(self):
+        with self.assertRaises(ValidationError):
+            KeyConverter(self.map).to_python("")
+        with self.assertRaises(ValidationError):
+            KeyConverter(self.map).to_python("1/")
+        with self.assertRaises(ValidationError):
+            KeyConverter(self.map).to_python("/1")
+
+    def test_reject_nondigit(self):
+        with self.assertRaises(ValidationError):
+            KeyConverter(self.map).to_python("ab12")
+        with self.assertRaises(ValidationError):
+            KeyConverter(self.map).to_python("12/a3")
+        with self.assertRaises(ValidationError):
+            KeyConverter(self.map).to_python("12w/3")
+        with self.assertRaises(ValidationError):
+            KeyConverter(self.map).to_python("12_")
     
