@@ -186,7 +186,7 @@ app.url_map.converters['key'] = KeyConverter
 @error_reporting
 def feed_by_key(key: KeyConstructor):
     key = ndb.Key(*key)
-    with model.LoadFilterPermission(key).require():
+    with model.ApplyFilterPermission(key).require(403):
         return filter_feed.feed_by_key(request, key)
 
 @app.route('/v1/')
@@ -201,7 +201,7 @@ def  list_feeds():
 @error_reporting
 def  get_feed(key: KeyConstructor):
     key = ndb.Key(*key)
-    with model.ViewFilterPermission(key).require():
+    with model.ViewFilterPermission(key).require(403):
         return view.get_feed(request,  key)
 
 @app.post('/v1/<key:key>/edit')
@@ -209,7 +209,7 @@ def  get_feed(key: KeyConstructor):
 @error_reporting
 def  update_feed(key: KeyConstructor):
     key = ndb.Key(*key)
-    with model.EditFilterPermission(key).require():
+    with model.EditFilterPermission(key).require(403):
         return view.update_feed(request,  key)
 
 @app.post('/v1/<key:key>/delete')
@@ -217,7 +217,7 @@ def  update_feed(key: KeyConstructor):
 @error_reporting
 def  delete_feed(key: KeyConstructor):
     key = ndb.Key(*key)
-    with model.DeleteFilterPermission(key).require():
+    with model.DeleteFilterPermission(key).require(403):
         return view.delete_feed(request,  key)
 
 @app.route('/v1/create', methods=['GET', 'POST'])

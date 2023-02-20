@@ -47,7 +47,7 @@ def MockDatastoreStub():
     stub.rollback = MockUnaryUnaryCallable()
     stub.allocate_ids = MockUnaryUnaryCallable()
     stub.reserve_ids = MockUnaryUnaryCallable()
-    stub.get_oeration = MockUnaryUnaryCallable()
+    stub.get_operation = MockUnaryUnaryCallable()
     stub.list_operations = MockUnaryUnaryCallable()
     stub.delete_operation = MockUnaryUnaryCallable()
     stub.cancel_operation = MockUnaryUnaryCallable()

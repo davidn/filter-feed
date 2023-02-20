@@ -8,6 +8,9 @@ from google.cloud import ndb
 import model
 import ndb_mocks
 from app import app
+from fake_user import FakeUser
+from flask_login.utils import current_user
+import flask_login
 
 class TestValidateJQQB(unittest.TestCase):
     def test_valid_empty(self):
@@ -36,50 +39,61 @@ class TestValidateJQQB(unittest.TestCase):
 
 class TestFilterPermission(unittest.TestCase):
     def setUp(self):
-            # needed because flask-principal stores identity in app context
-        self.app_context = app.app_context()
-        self.app_context.push()
-        self.addCleanup(self.app_context.pop)
+        # needed because flask-principal stores identity in app context
+        # and flask_login relies on a request context.
+        self.test_request_context = app.test_request_context()
+        self.test_request_context.push()
+        self.addCleanup(self.test_request_context.pop)
         
         # needed because Key relies on a context
         ctxmgr = ndb_mocks.MockNdbClient()().context()
         self.context = ctxmgr.__enter__()
         self.addCleanup(ctxmgr.__exit__, None, None, None)  # TODO: Use enterContext when 3.11 is standard
+        
+    @property
+    def anon_identity(self):
+        return flask_principal.AnonymousIdentity()
+    
+    @property
+    def log_in_identity(self):
+        return flask_principal.Identity(id="fs_uniquewhatever")
     
     def set_identity(self, identity):
+        if not isinstance(identity, flask_principal.AnonymousIdentity):
+            flask_login.login_user(FakeUser(fs_uniquifier=identity.id, id=123))
         flask_principal.identity_changed.send(current_app._get_current_object(),
                               identity=identity)
     
     def test_wrong_user(self):
-        self.set_identity(flask_principal.Identity(id="123"))
+        self.set_identity(self.log_in_identity)
         key = ndb.Key("User", 666, "Filter", 321)
         
         permission = model.ViewFilterPermission(key)
         self.assertFalse(permission.can())
     
     def test_anonymous(self):
-        self.set_identity(flask_principal.AnonymousIdentity())
+        self.set_identity(self.anon_identity)
         key = ndb.Key("User", 666, "Filter", 321)
         
         permission = model.ViewFilterPermission(key)
         self.assertFalse(permission.can())
     
     def test_legacy_key(self):
-        self.set_identity(flask_principal.Identity(id="123"))
+        self.set_identity(self.log_in_identity)
         key = ndb.Key("Filter", 321)
         
         permission = model.ViewFilterPermission(key)
         self.assertFalse(permission.can())
     
     def test_right_user(self):
-        self.set_identity(flask_principal.Identity(id="123"))
+        self.set_identity(self.log_in_identity)
         key = ndb.Key("User", 123, "Filter", 321)
         
         permission = model.ViewFilterPermission(key)
         self.assertTrue(permission.can())
     
     def test_admin_role(self):
-        identity = flask_principal.Identity(id="123")
+        identity = self.log_in_identity
         identity.provides.add(model.FilterAdminRoleNeed)
         self.set_identity(identity)
         
@@ -92,7 +106,7 @@ class TestFilterPermission(unittest.TestCase):
         self.assertTrue(permission.can())
     
     def test_need_granted(self):
-        identity = flask_principal.Identity(id="123")
+        identity = self.log_in_identity
         key = ndb.Key("Filter", 321)
         identity.provides.add(model.ViewFilterNeed(value=key.urlsafe()))
         self.set_identity(identity)

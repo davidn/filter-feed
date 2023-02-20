@@ -8,7 +8,7 @@ from google.cloud import ndb  # type: Any
 from validators import url
 from jqqb_evaluator.evaluator import Evaluator
 from flask_security import UserMixin, RoleMixin
-from flask_principal import Permission, ItemNeed, RoleNeed
+from flask_principal import Permission, ItemNeed, RoleNeed, AnonymousIdentity
 
 from item import Item
 
@@ -92,7 +92,7 @@ class User(ndb.Model,  UserMixin):
         
 
 FilterNeed = partial(ItemNeed, type='filter')
-LoadFilterNeed = partial(FilterNeed, method='load')
+ApplyFilterNeed = partial(FilterNeed, method='load')
 ViewFilterNeed = partial(FilterNeed, method='view')
 EditFilterNeed = partial(FilterNeed, method='edit')
 DeleteFilterNeed = partial(FilterNeed, method='delete')
@@ -127,13 +127,14 @@ class FilterPermission(Permission):
         if FilterAdminRoleNeed in identity.provides:
             return True
         
-        if self.filter_key.root().kind() == "User" and str(self.filter_key.root().id()) == identity.id:
+        if not isinstance(identity, AnonymousIdentity) \
+            and self.filter_key.root() == getattr(identity.user, "key", None):
             return True
         return False
 
 
-class LoadFilterPermission(FilterPermission):
-    Need = LoadFilterNeed
+class ApplyFilterPermission(FilterPermission):
+    Need = ApplyFilterNeed
     
     def allows(self, identity):
         return True
