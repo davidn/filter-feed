@@ -1,0 +1,51 @@
+{% macro render_field_with_errors(field) %}
+  <div class="mb-3">
+  	{% if field.type == "BooleanField" %}
+    	{{ field(class="form-check-control",**kwargs)|safe }} {{ field.label(class="form-check-label") }} 
+  	{% else %}
+    	{{ field.label(class="form-label") }} {{ field(class="form-control",**kwargs)|safe }}
+    {% endif %}
+    {% if field.errors %}
+		<div class="my-3">
+      {% for error in field.errors %}
+        <div class="alert alert-warning" role="alert">{{ error }}</div>
+      {% endfor %}
+	  </div>
+    {% endif %}
+  </div>
+{% endmacro %}
+
+{% macro render_field(field) %}
+	<div class="mb-3">
+	  {% if field.type == "SubmitField" %}
+		{{ field(class="btn btn-primary",**kwargs)|safe }}
+	  {% else %}
+	  	{{ field(class="form-control",**kwargs)|safe }}
+	  {% endif %}
+	 </div>
+{% endmacro %}
+
+{% macro render_field_errors(field) %}
+{% if field and field.errors %}
+  <div class="my-3">
+      {% for error in field.errors %}
+        <div class="alert alert-warning" role="alert">{{ error }}</div>
+      {% endfor %}
+  </div>
+{% endif %}
+{% endmacro %}
+
+{# render WTForms (>3.0) form level errors #}
+{% macro render_form_errors(form) %}
+  {% if form.form_errors %}
+  <div class="my-3">
+    {% for error in form.form_errors %}
+        <div class="alert alert-warning" role="alert">{{ error }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+{% endmacro %}
+
+{% macro prop_next() -%}
+  {% if 'next' in request.args %}?next={{ request.args.next|urlencode }}{% endif %}
+{%- endmacro %}
